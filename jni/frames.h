@@ -32,6 +32,18 @@ enum class pFormat {
 	RGBA = FOURCC ('R', 'G', 'B', 'A'), // 8 bit 4:4:4, packed A(8) R(8) G(8) B(8)
 };
 
+enum class pRange {
+	UNKNOWN = 0,
+	TV = 1,
+	PC = 2,
+};
+
+enum class pMatrix {
+	UNKNOWN = 0,
+	BT601 = 1,
+	BT709 = 2,
+};
+
 int chooseUPlanes (pFormat format);
 GLenum chooseUFormat (pFormat format, bool first);
 bool chooseUHalf (pFormat format, bool first, bool width);

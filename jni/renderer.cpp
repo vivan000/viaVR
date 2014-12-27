@@ -112,8 +112,32 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 	videoSarWidth =		video->getSarWidth ();
 	videoSarHeight =	video->getSarHeight ();
 	videoFps = 			(double) video->getFpsNumerator () / video->getFpsDenominator();
-	videoRange = 		video->getRange ();
-	videoMatrix = 		video->getMatrix ();
+
+	switch (video->getRange ()) {
+		case (int) pRange::UNKNOWN:
+		case (int) pRange::TV:
+			videoRange = pRange::TV;
+			break;
+		case (int) pRange::PC:
+			videoRange = pRange::PC;
+			break;
+		default:
+			return false;
+	}
+
+	switch (video->getMatrix ()) {
+			case (int) pRange::UNKNOWN:
+				videoMatrix = videoWidth > 1024 ? pMatrix::BT709 : pMatrix::BT601;
+				break;
+			case (int) pMatrix::BT601:
+				videoMatrix = pMatrix::BT601;
+				break;
+			case (int) pMatrix::BT709:
+				videoMatrix = pMatrix::BT709;
+				break;
+			default:
+				return false;
+		}
 
 	switch (video->getFourCC ()) {
 		case (int) pFormat::P008:
@@ -153,7 +177,6 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 			videoFourCC = pFormat::RGBA;
 			break;
 		default:
-			videoFourCC = pFormat::NONE;
 			return false;
 	}
 

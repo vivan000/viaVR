@@ -48,7 +48,8 @@ private:
 	int videoWidth, videoHeight;
 	int videoSarWidth, videoSarHeight;
 	double videoFps;
-	int videoRange, videoMatrix;
+	pRange videoRange;
+	pMatrix videoMatrix;
 	pFormat videoFourCC;
 
 	bool decoding, uploading, rendering, backbuffering, playing;

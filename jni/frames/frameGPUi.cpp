@@ -18,13 +18,3 @@ void frameGPUi::swap (frameGPUi& that) {
 	std::swap (plane, that.plane);
 	std::swap (timecode, that.timecode);
 }
-
-GLenum frameGPUi::chooseType (pFormat format) {
-	switch (format) {
-		case pFormat::HALF:
-			return GL_HALF_FLOAT_OES;
-		case pFormat::FULL:
-			return GL_FLOAT;
-	}
-	return 0;
-}

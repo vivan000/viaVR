@@ -44,9 +44,11 @@ enum class pMatrix {
 	BT709 = 2,
 };
 
+int chooseBpp (pFormat format);
 int chooseUPlanes (pFormat format);
 GLenum chooseUFormat (pFormat format, bool first);
 bool chooseUHalf (pFormat format, bool first, bool width);
+GLenum chooseType (pFormat format);
 
 // frame for upload - CPU
 class frameCPU {
@@ -57,9 +59,6 @@ public:
 	frameCPU (int w, int h, pFormat f);
 	~frameCPU ();
 	void swap (frameCPU& that);
-
-private:
-	int chooseFormat (pFormat format);
 };
 
 // frame for upload, 1-3 planes, 1-4 channels, byte
@@ -85,9 +84,6 @@ public:
 	frameGPUi (int w, int h, pFormat f);
 	~frameGPUi ();
 	void swap (frameGPUi& that);
-
-private:
-	GLenum chooseType (pFormat format);
 };
 
 // output frame, RGB byte

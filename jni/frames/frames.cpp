@@ -1,5 +1,32 @@
 #include "frames.h"
 
+int chooseBpp (pFormat format) {
+	switch (format) {
+		case pFormat::P008:
+		case pFormat::NV12:
+		case pFormat::NV21:
+			return 12;
+
+		case pFormat::P208:
+			return 16;
+
+		case pFormat::P408:
+		case pFormat::P010:
+		case pFormat::P016:
+			return 24;
+
+		case pFormat::P210:
+		case pFormat::P216:
+		case pFormat::RGBA:
+			return 32;
+
+		case pFormat::P410:
+		case pFormat::P416:
+			return 48;
+	}
+	return 0;
+}
+
 int chooseUPlanes (pFormat format) {
 	switch (format) {
 		case pFormat::P008:
@@ -79,4 +106,14 @@ bool chooseUHalf (pFormat format, bool first, bool width) {
 			return false;
 	}
 	return false;
+}
+
+GLenum chooseType (pFormat format) {
+	switch (format) {
+		case pFormat::HALF:
+			return GL_HALF_FLOAT_OES;
+		case pFormat::FULL:
+			return GL_FLOAT;
+	}
+	return 0;
 }

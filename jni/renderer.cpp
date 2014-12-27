@@ -514,7 +514,7 @@ void Renderer::pause () {
 
 void Renderer::decode () {
 	frameCPU t (videoWidth, videoHeight, videoFourCC);
-	int size = videoWidth * videoHeight * 4;
+	int size = videoWidth * videoHeight * chooseBpp (videoFourCC) / 8;
 
 	decoding = true;
 	while (decoding) {

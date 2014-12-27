@@ -62,21 +62,6 @@ private:
 	int chooseFormat (pFormat format);
 };
 
-// deprecated
-class frameGPU {
-public:
-	GLuint plane;
-	int timecode;
-
-	frameGPU (int w, int h, pFormat f);
-	~frameGPU ();
-	void swap (frameGPU& that);
-
-private:
-	GLenum chooseFormat (pFormat format);
-	GLenum chooseType (pFormat format);
-};
-
 // frame for upload, 1-3 planes, 1-4 channels, byte
 class frameGPUu {
 public:

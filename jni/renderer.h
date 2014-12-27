@@ -35,8 +35,8 @@ private:
 	void setAspect ();
 	void genContexts ();
 
-	void presentFrame (frameGPU* f);
-	void getNextFrame (frameGPU* f);
+	void presentFrame (frameGPUo* f);
+	void getNextFrame (frameGPUo* f);
 
 	void upload ();
 	void decode ();
@@ -55,7 +55,7 @@ private:
 	bool decoding, uploading, rendering, backbuffering, playing;
 
 	queue<frameCPU>* decodeQueue;
-	queue<frameGPU>* uploadQueue;
+	queue<frameGPUo>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
 	queue<frameGPUo>* backbufferQueue;
 
@@ -87,7 +87,7 @@ private:
 	int targetWidth, targetHeight;
 	int targetX, targetY;
 
-	frameGPU* displayCurr;
+	frameGPUo* displayCurr;
 	double repeat, factor;
 	bool newFrame;
 	int frameNumber, presentedFrames;

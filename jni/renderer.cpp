@@ -225,7 +225,7 @@ bool Renderer::init () {
 	decodeQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
 	decodeThread = std::thread (&Renderer::decode, this);
 
-	uploadQueue = new queue<frameGPU> (8, videoWidth, videoHeight, videoFourCC);
+	uploadQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
 	uploadThread = std::thread (&Renderer::upload, this);
 /*
 	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
@@ -240,7 +240,7 @@ bool Renderer::init () {
 	}
 
 	// create display texture
-	displayCurr = new frameGPU (videoWidth, videoHeight, pFormat::RGBA);
+	displayCurr = new frameGPUo (videoWidth, videoHeight, pFormat::RGBA);
 
 	factor = displayRefreshRate / videoFps;
 	glUseProgram (displaySP);
@@ -483,7 +483,7 @@ void Renderer::drawFrame () {
 	}
 }
 
-void Renderer::presentFrame (frameGPU* f) {
+void Renderer::presentFrame (frameGPUo* f) {
 	//ALOG ("f %i t %i n %i r %.3f f %.3f", frameNumber, f->timecode, tcNow (), repeat, factor);
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
@@ -493,7 +493,7 @@ void Renderer::presentFrame (frameGPU* f) {
 	newFrame = false;
 }
 
-void Renderer::getNextFrame (frameGPU* f) {
+void Renderer::getNextFrame (frameGPUo* f) {
 	if (!uploadQueue->isEmpty()) {
 		uploadQueue->pop (*f);
 
@@ -536,7 +536,7 @@ void Renderer::upload () {
 	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer2, uploadContext);
 
 	frameCPU from (videoWidth, videoHeight, videoFourCC);
-	frameGPU to (videoWidth, videoHeight, videoFourCC);
+	frameGPUo to (videoWidth, videoHeight, videoFourCC);
 
 	int planes = chooseUPlanes (videoFourCC);
 	int widthChroma = chooseUHalf (videoFourCC, false, true) ? videoWidth / 2 : videoWidth;
@@ -609,7 +609,7 @@ void Renderer::upload () {
 void Renderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
-	frameGPU from (videoWidth, videoHeight, videoFourCC);
+	frameGPUo from (videoWidth, videoHeight, videoFourCC);
 	frameGPUo to (videoWidth, videoHeight, pFormat::RGBA);
 
 	frameGPUi t (videoWidth, videoHeight, storage16 ? pFormat::FULL : pFormat::HALF);

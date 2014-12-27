@@ -73,12 +73,12 @@ Renderer::~Renderer () {
 	//backbuffering = false;
 	playing = false;
 
-	decoderThread.join ();
+	decodeThread.join ();
 	uploadThread.join ();
 	//rendererThread.join ();
 	//backbufferThread.join ();
 
-	delete decoderQueue;
+	delete decodeQueue;
 	delete uploadQueue;
 	//delete rendererQueue;
 	//delete backbufferQueue;
@@ -199,12 +199,18 @@ bool Renderer::init () {
 	glEnableVertexAttribArray (displayTCLoc);
 
 	// start threads
-	decoderQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
-	decoderThread = std::thread (&Renderer::decode, this);
+	decodeQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
+	decodeThread = std::thread (&Renderer::decode, this);
 
 	uploadQueue = new queue<frameGPU> (8, videoWidth, videoHeight, videoFourCC);
 	uploadThread = std::thread (&Renderer::upload, this);
+/*
+	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
+	decodeThread = std::thread (&Renderer::render, this);
 
+	backbufferQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
+	backbufferThread = std::thread (&Renderer::backbuffer, this);
+*/
 	// wait till there's at least 1 frame to show
 	while (uploadQueue->isEmpty()) {
 		usleep (10000);
@@ -484,16 +490,16 @@ void Renderer::pause () {
 }
 
 void Renderer::decode () {
-	frameCPU t (videoWidth, videoHeight, pFormat::RGBA);
+	frameCPU t (videoWidth, videoHeight, videoFourCC);
 	int size = videoWidth * videoHeight * 4;
 
 	decoding = true;
 	while (decoding) {
-		if (!decoderQueue->isFull ()) {
+		if (!decodeQueue->isFull ()) {
 			t.timecode = video->getNextVideoframe (t.plane, size);
 
 			if (t.timecode != -1) {
-				decoderQueue->push (t);
+				decodeQueue->push (t);
 			} else {
 				decoding = false;
 			}
@@ -543,8 +549,8 @@ void Renderer::upload () {
 
 	uploading = true;
 	while (uploading) {
-		if (!decoderQueue->isEmpty () && !uploadQueue->isFull ()) {
-			decoderQueue->pop (from);
+		if (!decodeQueue->isEmpty () && !uploadQueue->isFull ()) {
+			decodeQueue->pop (from);
 
 			to.timecode = from.timecode;
 			glBindTexture (GL_TEXTURE_2D, to.plane);
@@ -569,7 +575,7 @@ void Renderer::upload () {
 			glFlush ();
 
 			uploadQueue->push (to);
-		} else if (decoderQueue->isEmpty () && !decoding) {
+		} else if (decodeQueue->isEmpty () && !decoding) {
 			uploading = false;
 		} else {
 			usleep (10000);
@@ -577,6 +583,56 @@ void Renderer::upload () {
 	}
 }
 
+void Renderer::render () {
+	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
+
+	frameGPU from (videoWidth, videoHeight, videoFourCC);
+	frameGPUo to (videoWidth, videoHeight, pFormat::RGBA);
+
+	frameGPUi t (videoWidth, videoHeight, storage16 ? pFormat::FULL : pFormat::HALF);
+
+	rendering = true;
+	while (rendering) {
+		if (!uploadQueue->isEmpty () && !renderQueue->isFull ()) {
+			uploadQueue->pop (from);
+
+			// from
+			//  V
+			// upscale chroma + merge into 1 plane
+			//  V
+			//  t
+			//  V
+			// scale, dither
+			//  V
+			// to
+
+			renderQueue->push (to);
+		} else if (uploadQueue->isEmpty () && !uploading) {
+			rendering = false;
+		} else {
+			usleep (10000);
+		}
+	}
+}
+
+void Renderer::backbuffer () {
+	eglMakeCurrent (display, backbufferPBuffer, backbufferPBuffer2, backbufferContext);
+
+	frameGPUo t (videoWidth, videoHeight, videoFourCC);
+
+	backbuffering = true;
+	while (backbuffering) {
+		if (!renderQueue->isEmpty () && !backbufferQueue->isFull ()) {
+			renderQueue->pop (t);
+
+			backbufferQueue->push (t);
+		} else if (renderQueue->isEmpty () && !rendering) {
+			backbuffering = false;
+		} else {
+			usleep (10000);
+		}
+	}
+}
 /*
 	// create FBO
 	GLuint framebuffer;

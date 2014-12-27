@@ -18,8 +18,6 @@ public:
 	void play (int timecode);
 	void pause ();
 
-	bool deleteMe ();
-
 	// void setMode ();
 	// void setSubtitleDecoder ();
 	// void flush ();

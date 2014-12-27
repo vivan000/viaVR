@@ -47,10 +47,10 @@ const char* Renderer::displayFP =
 	u = t2.r/255.0
 	v = t2.a/255.0
 
-	P010 (LUMINANCE_ALPHA, RGBA)
+	P010 (LUMINANCE_ALPHA, LUMINANCE_ALPHA, LUMINANCE_ALPHA)
 	y = t1.r/255.0 + t1.a/65535.0
-	u = t2.r/255.0 + t2.g/65535.0
-	v = t2.b/255.0 + t2.a/65535.0
+	u = t2.r/255.0 + t2.a/65535.0
+	v = t3.r/255.0 + t3.a/65535.0
 */
 
 const GLuint Renderer::displayVCLoc = 0;
@@ -407,43 +407,50 @@ void Renderer::drawFrame () {
 	glFinish();
 	glClear (GL_COLOR_BUFFER_BIT);
 
-	if (initialized && playing)	{
-		int tc = tcNow ();
-		while (repeat <= 0.0) {
-			repeat += factor;
-			getNextFrame (displayCurr);
-		}
-
-		if (displayCurr->timecode < tc) {
-			if (displayCurr->timecode < tc - 2000 / videoFps) {
-				//if very late - drop current frame
-				ALOG ("hard drop (repeat: %f, factor: %f)", repeat, factor);
-				repeat -= 1.0;
-			} else if (newFrame && (repeat >= floor (factor))) {
-				// if just a bit early - try to find best frame to drop (that is repeated more times than others)
-				ALOG ("soft drop (repeat: %f, factor: %f)", repeat, factor);
-				repeat -= 1.0;
+	if (initialized) {
+		if (playing) {
+			int tc = tcNow ();
+			while (repeat <= 0.0) {
+				repeat += factor;
+				getNextFrame (displayCurr);
 			}
-		} else if (displayCurr->timecode > tc + 1000 / videoFps) {
-			if (displayCurr->timecode > tc + 3000 / videoFps) {
-				// if very early - repeat current frame
-				ALOG ("hard repeat (repeat: %f, factor: %f)", repeat, factor);
-				repeat += 1.0;
-			} else if (newFrame && (repeat <= floor (factor))) {
-				// if just a but early - try to find frame best frame to drop (that is repeated less times than others)
-				// < should be better (since equality means that frame would be repeated more times),
-				// but then it will never fix offsync with int factors
-				ALOG ("soft repeat (repeat: %f, factor: %f)", repeat, factor);
-				repeat += 1.0;
-			}
-		}
 
-		presentFrame (displayCurr);
-/*
-		if ((frameNumber > 10) && (repeat <= 0.0)) {
-			factor = (double) presentedFrames / frameNumber;
+			if (displayCurr->timecode < tc) {
+				if (displayCurr->timecode < tc - 2000 / videoFps) {
+					// if very late - drop current frame
+					ALOG ("hard drop (repeat: %f, factor: %f)", repeat, factor);
+					repeat -= 1.0;
+				} else if (newFrame && (repeat >= floor (factor))) {
+					// if just a bit early - try to find best frame to drop (that is repeated more times than others)
+					ALOG ("soft drop (repeat: %f, factor: %f)", repeat, factor);
+					repeat -= 1.0;
+				}
+			} else if (displayCurr->timecode > tc + 1000 / videoFps) {
+				if (displayCurr->timecode > tc + 3000 / videoFps) {
+					// if very early - repeat current frame
+					ALOG ("hard repeat (repeat: %f, factor: %f)", repeat, factor);
+					repeat += 1.0;
+				} else if (newFrame && (repeat <= floor (factor))) {
+					// if just a but early - try to find frame best frame to drop (that is repeated less times than others)
+					// < should be better (since equality means that frame would be repeated more times),
+					// but then it will never fix offsync with int factors
+					ALOG ("soft repeat (repeat: %f, factor: %f)", repeat, factor);
+					repeat += 1.0;
+				}
+			}
+
+			presentFrame (displayCurr);
+	/*
+			if ((frameNumber > 10) && (repeat <= 0.0)) {
+				factor = (double) presentedFrames / frameNumber;
+			}
+	*/
+			if (uploadQueue->isEmpty() && !uploading)
+				playing = false;
+		} else {
+			glBindTexture (GL_TEXTURE_2D, displayCurr->plane);
+			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 		}
-*/
 	}
 }
 
@@ -484,7 +491,12 @@ void Renderer::decode () {
 	while (decoding) {
 		if (!decoderQueue->isFull ()) {
 			t.timecode = video->getNextVideoframe (t.plane, size);
-			decoderQueue->push (t);
+
+			if (t.timecode != -1) {
+				decoderQueue->push (t);
+			} else {
+				decoding = false;
+			}
 		} else {
 			usleep (10000);
 		}
@@ -557,6 +569,8 @@ void Renderer::upload () {
 			glFlush ();
 
 			uploadQueue->push (to);
+		} else if (decoderQueue->isEmpty () && !decoding) {
+			uploading = false;
 		} else {
 			usleep (10000);
 		}

@@ -126,18 +126,18 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 	}
 
 	switch (video->getMatrix ()) {
-			case (int) pRange::UNKNOWN:
-				videoMatrix = videoWidth > 1024 ? pMatrix::BT709 : pMatrix::BT601;
-				break;
-			case (int) pMatrix::BT601:
-				videoMatrix = pMatrix::BT601;
-				break;
-			case (int) pMatrix::BT709:
-				videoMatrix = pMatrix::BT709;
-				break;
-			default:
-				return false;
-		}
+		case (int) pMatrix::UNKNOWN:
+			videoMatrix = videoWidth > 1024 ? pMatrix::BT709 : pMatrix::BT601;
+			break;
+		case (int) pMatrix::BT601:
+			videoMatrix = pMatrix::BT601;
+			break;
+		case (int) pMatrix::BT709:
+			videoMatrix = pMatrix::BT709;
+			break;
+		default:
+			return false;
+	}
 
 	switch (video->getFourCC ()) {
 		case (int) pFormat::P008:

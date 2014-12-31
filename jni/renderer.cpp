@@ -177,17 +177,22 @@ bool Renderer::init () {
 	// check extenions
 	if (!checkExtensions ())
 		return false;
+	ALOG ("Extensions: OK");
 
-	// load shaders
+	// ========================= load shaders =========================
+	// load display shaders
 	GLuint hVertexShader = loadShader (GL_VERTEX_SHADER, displayVP);
 	GLuint hFragmentShader = loadShader (GL_FRAGMENT_SHADER, displayFP);
 	if (!hVertexShader || !hFragmentShader)
 		return false;
+	ALOG ("Compiling shaders: OK");
 
-	// load program
+	// ======================== load programs =========================
+	// load display program
 	displaySP = loadProgram (hVertexShader, hFragmentShader);
 	if (!displaySP)
 		return false;
+	ALOG ("Loading program: OK");
 
 	// load coordinates
 	glGenBuffers (2, vboIds);
@@ -229,6 +234,7 @@ bool Renderer::init () {
 
 	factor = displayRefreshRate / videoFps;
 	initialized = true;
+	ALOG ("Initialization: OK");
 	return true;
 }
 
@@ -640,31 +646,3 @@ void Renderer::backbuffer () {
 		}
 	}
 }
-/*
-	// create FBO
-	GLuint framebuffer;
-	GLuint depthRenderbuffer;
-	GLuint texture;
-
-	glGenFramebuffers(1, &framebuffer);
-	glGenRenderbuffers(1, &depthRenderbuffer);
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, sWidth, sHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glBindRenderbuffer(GL_RENDERBUFFER, depthRenderbuffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, sWidth, sHeight);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderbuffer);
-*/
-
-/*
-	// delete FBO
-	glDeleteRenderbuffers(1, &depthRenderbuffer);
-	glDeleteFramebuffers(1, &framebuffer);
-	glDeleteTextures(1, &texture);
-*/

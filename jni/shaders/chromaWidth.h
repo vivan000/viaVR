@@ -1,0 +1,7 @@
+"const float X = 0.5 / width;											\n"
+"																		\n"
+"void main () {															\n"
+"	gl_FragColor = mix (texture2D (texture, coord + vec2 (-X, 0.0)),	\n"
+"		texture2D (texture, coord + vec2 (X, 0.0)),						\n"
+"		0.5);															\n"
+"}																		\n"

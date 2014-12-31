@@ -1,0 +1,7 @@
+"const float Y = 1.0 / height;											\n"
+"																		\n"
+"void main () {															\n"
+"	gl_FragColor = mix (texture2D (texture, coord + vec2 (0.0, -Y)),	\n"
+"		texture2D (texture, coord + vec2 (0.0, Y)),						\n"
+"		frac (coord.y * Y * 0.5));										\n"
+"}																		\n"

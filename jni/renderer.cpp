@@ -30,11 +30,11 @@ const char* Renderer::displayFP =
 const GLuint Renderer::vertexCoordLoc = 0;
 const GLuint Renderer::textureCoordLoc = 1;
 
-const char* Renderer::chromaHeightFP =
-	#include "shaders/chromaHeight.h"
+const char* Renderer::up420to422FP =
+	#include "shaders/up420to422.h"
 
-const char* Renderer::chromaWidthFP =
-	#include "shaders/chromaWidth.h"
+const char* Renderer::up422to444FP =
+	#include "shaders/up422to444.h"
 
 Renderer::Renderer () {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);

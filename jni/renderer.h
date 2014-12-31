@@ -103,6 +103,6 @@ private:
 	const static float VertexPositions[];
 	const static float VertexTexcoord[];
 
-	const static char* chromaHeightFP;
-	const static char* chromaWidthFP;
+	const static char* up420to422FP;
+	const static char* up422to444FP;
 };

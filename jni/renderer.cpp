@@ -27,18 +27,6 @@ const char* Renderer::displayVP =
 const char* Renderer::displayFP =
 	#include "shaders/displayFrag.h"
 
-/*
-	NV12 (LUMINANCE, LUMINANCE_ALPHA)
-	y = t1.r/255.0
-	u = t2.r/255.0
-	v = t2.a/255.0
-
-	P010 (LUMINANCE_ALPHA, LUMINANCE_ALPHA, LUMINANCE_ALPHA)
-	y = t1.r/255.0 + t1.a/65535.0
-	u = t2.r/255.0 + t2.a/65535.0
-	v = t3.r/255.0 + t3.a/65535.0
-*/
-
 const GLuint Renderer::displayVCLoc = 0;
 const GLuint Renderer::displayTCLoc = 1;
 
@@ -207,6 +195,11 @@ bool Renderer::init () {
 	glVertexAttribPointer(displayTCLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (displayTCLoc);
 
+	// set texture unit
+	GLint displayTLoc = glGetUniformLocation (displaySP, "displayT");
+	glUseProgram (displaySP);
+	glUniform1i (displayTLoc, 0);
+
 	// start threads
 	decodeQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
 	decodeThread = std::thread (&Renderer::decode, this);
@@ -229,7 +222,6 @@ bool Renderer::init () {
 	displayCurr = new frameGPUo (videoWidth, videoHeight, pFormat::RGBA);
 
 	factor = displayRefreshRate / videoFps;
-	glUseProgram (displaySP);
 	initialized = true;
 	return true;
 }

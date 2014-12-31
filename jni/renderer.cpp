@@ -22,24 +22,10 @@ const float Renderer::VertexTexcoord[] = {
 	1.0f, 1.0f};
 
 const char* Renderer::displayVP =
-	"attribute vec4 displayVC;											\n"
-	"attribute vec2 displayTC;								 		    \n"
-	"                                                                   \n"
-	"varying   vec2 displayTCI;											\n"
-	"																	\n"
-	"void main () {														\n"
-	"    gl_Position = displayVC;										\n"
-	"    displayTCI = displayTC;										\n"
-	"}																	\n";
+	#include "shaders/displayVert.h"
+
 const char* Renderer::displayFP =
-	"precision lowp float;												\n"
-	"																	\n"
-	"uniform   sampler2D displayT;										\n"
-	"varying   vec2      displayTCI;									\n"
-	"																	\n"
-	"void main () {														\n"
-	"    gl_FragColor = texture2D (displayT, displayTCI);				\n"
-	"}																	\n";
+	#include "shaders/displayFrag.h"
 
 /*
 	NV12 (LUMINANCE, LUMINANCE_ALPHA)

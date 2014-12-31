@@ -3,10 +3,10 @@
 "uniform sampler2D chroma;												\n"
 "varying vec2      coord;												\n"
 "																		\n"
-"const float Y = 1.0 / %i;												\n"
+"const float Y = 1.0 / %i.0;											\n"
 "																		\n"
 "void main () {															\n"
 "	gl_FragColor = mix (texture2D (chroma, coord + vec2 (0.0, -Y)),		\n"
 "		texture2D (chroma, coord + vec2 (0.0, Y)),						\n"
-"		frac (coord.y * Y * 0.5));										\n"
+"		fract (coord.y * Y * 0.5));										\n"
 "}																		\n";

@@ -30,6 +30,12 @@ const char* Renderer::displayFP =
 const GLuint Renderer::displayVCLoc = 0;
 const GLuint Renderer::displayTCLoc = 1;
 
+const char* Renderer::chromaHeightFP =
+	#include "shaders/chromaHeight.h"
+
+const char* Renderer::chromaWidthFP =
+	#include "shaders/chromaWidth.h"
+
 Renderer::Renderer () {
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT);

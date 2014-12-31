@@ -102,4 +102,7 @@ private:
 	const static char* displayFP;
 	const static float VertexPositions[];
 	const static float VertexTexcoord[];
+
+	const static char* chromaHeightFP;
+	const static char* chromaWidthFP;
 };

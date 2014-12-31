@@ -95,8 +95,8 @@ private:
 	GLuint displaySP;
 	GLuint vboIds[2];
 
-	const static GLuint displayVCLoc;
-	const static GLuint displayTCLoc;
+	const static GLuint vertexCoordLoc;
+	const static GLuint textureCoordLoc;
 
 	const static char* displayVP;
 	const static char* displayFP;

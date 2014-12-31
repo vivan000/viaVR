@@ -27,8 +27,8 @@ const char* Renderer::displayVP =
 const char* Renderer::displayFP =
 	#include "shaders/displayFrag.h"
 
-const GLuint Renderer::displayVCLoc = 0;
-const GLuint Renderer::displayTCLoc = 1;
+const GLuint Renderer::vertexCoordLoc = 0;
+const GLuint Renderer::textureCoordLoc = 1;
 
 const char* Renderer::chromaHeightFP =
 	#include "shaders/chromaHeight.h"
@@ -198,16 +198,16 @@ bool Renderer::init () {
 	glGenBuffers (2, vboIds);
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
-	glVertexAttribPointer(displayVCLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (displayVCLoc);
+	glVertexAttribPointer(vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (vertexCoordLoc);
 
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
-	glVertexAttribPointer(displayTCLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (displayTCLoc);
+	glVertexAttribPointer(textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (textureCoordLoc);
 
 	// set texture unit
-	GLint displayTLoc = glGetUniformLocation (displaySP, "displayT");
+	GLint displayTLoc = glGetUniformLocation (displaySP, "texture");
 	glUseProgram (displaySP);
 	glUniform1i (displayTLoc, 0);
 
@@ -332,8 +332,8 @@ GLuint Renderer::loadProgram (GLuint vertexShader, GLuint fragmentShader) {
 
 	glAttachShader (programObject, vertexShader);
 	glAttachShader (programObject, fragmentShader);
-	glBindAttribLocation (programObject, displayVCLoc, "displayVC");
-	glBindAttribLocation (programObject, displayTCLoc, "displayTC");
+	glBindAttribLocation (programObject, vertexCoordLoc, "vertexCoord");
+	glBindAttribLocation (programObject, textureCoordLoc, "textureCoord");
 	glLinkProgram (programObject);
 
 	GLint linked;

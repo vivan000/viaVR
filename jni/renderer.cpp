@@ -181,7 +181,7 @@ bool Renderer::init () {
 	ALOG ("Extensions: OK");
 
 	// load shaders
-	shader displayShader (displayVP, displayFP, true);
+	shader displayShader (displayVP, displayFP);
 	displayShader.addAtrib ("vertexCoord", vertexCoordLoc);
 	displayShader.addAtrib ("textureCoord", textureCoordLoc);
 	displaySP = displayShader.loadProgram ();

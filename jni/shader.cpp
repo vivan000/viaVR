@@ -1,11 +1,21 @@
 #include <android/log.h>
+#include <cstdio>
+#include <string.h>
 #include "shader.h"
 
 #define ALOG(...) __android_log_print (ANDROID_LOG_INFO, "viaVR", __VA_ARGS__)
 
-shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource, bool precision) : precision (precision) {
+shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource, ...) {
+	int size = strlen (fragmentShaderSource) + 32;
+	char* fragmentShaderSourceProcessed = new char[size];
+
+	va_list argptr;
+	va_start (argptr, fragmentShaderSource);
+	vsprintf (fragmentShaderSourceProcessed, fragmentShaderSource, argptr);
+	va_end (argptr);
+
 	vertexShader = loadShader (GL_VERTEX_SHADER, vertexShaderSource);
-	fragmentShader = loadShader (GL_FRAGMENT_SHADER, fragmentShaderSource);
+	fragmentShader = loadShader (GL_FRAGMENT_SHADER, fragmentShaderSourceProcessed);
 	programObject = glCreateProgram ();
 
 	if (programObject == 0) {
@@ -16,6 +26,8 @@ shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource
 		glAttachShader (programObject, vertexShader);
 		glAttachShader (programObject, fragmentShader);
 	}
+
+	delete[] fragmentShaderSourceProcessed;
 }
 
 shader::~shader () {

@@ -7,5 +7,5 @@
 "																		\n"
 "void main () {															\n"
 "    gl_FragColor = vec3 (texture2D (Y, coord).r,						\n"
-"		texture2D (Cb, coord).r, texture2D (Cb, coord).r);				\n"
+"		texture2D (Cb, coord).r, texture2D (Cr, coord).r);				\n"
 "}																		\n";

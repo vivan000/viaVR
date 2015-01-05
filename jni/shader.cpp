@@ -1,9 +1,7 @@
-#include <android/log.h>
 #include <cstdio>
 #include <string.h>
+#include "log.h"
 #include "shader.h"
-
-#define ALOG(...) __android_log_print (ANDROID_LOG_INFO, "viaVR", __VA_ARGS__)
 
 shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource, ...) {
 	int size = strlen (fragmentShaderSource) + 32;
@@ -19,7 +17,7 @@ shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource
 	programObject = glCreateProgram ();
 
 	if (programObject == 0) {
-		ALOG ("Error creating program");
+		LOGE ("Error creating program");
 	}
 
 	if (programObject && vertexShader && fragmentShader) {
@@ -41,9 +39,7 @@ void shader::addAtrib (const char* attribName, const GLuint attribLoaction) {
 
 GLuint shader::loadProgram () {
 	if (programObject && vertexShader && fragmentShader) {
-		ALOG ("%i", programObject);
 		glLinkProgram (programObject);
-		ALOG ("%i", programObject);
 
 		GLint linked;
 		glGetProgramiv (programObject, GL_LINK_STATUS, &linked);
@@ -53,7 +49,7 @@ GLuint shader::loadProgram () {
 			if (infoLen > 1) {
 				char* infoLog = new char[infoLen];
 				glGetProgramInfoLog (programObject, infoLen, NULL, infoLog);
-				ALOG ("Error linking program:\n%s", infoLog);
+				LOGE ("Error linking program:\n%s", infoLog);
 				delete[] infoLog;
 			}
 			return 0;
@@ -69,7 +65,7 @@ GLuint shader::loadProgram () {
 GLuint shader::loadShader (GLenum type, const char* shaderSource) {
 	GLuint shader = glCreateShader (type);
 	if (shader == 0) {
-		ALOG ("Error creating shader");
+		LOGE ("Error creating shader");
 		return 0;
 	}
 
@@ -84,7 +80,7 @@ GLuint shader::loadShader (GLenum type, const char* shaderSource) {
 		if (infoLen > 1) {
 			char* infoLog = new char[infoLen];
 			glGetShaderInfoLog (shader, infoLen, NULL, infoLog);
-			ALOG ("Error compiling shader:\n%s", infoLog);
+			LOGE ("Error compiling shader:\n%s", infoLog);
 			delete[] infoLog;
 		}
 		glDeleteShader (shader);

@@ -4,11 +4,9 @@
 #include <math.h>
 #include <string>
 #include <vector>
-#include <android/log.h>
+#include "log.h"
 #include "renderer.h"
 #include "shader.h"
-
-#define ALOG(...) __android_log_print (ANDROID_LOG_INFO, "viaVR", __VA_ARGS__)
 
 const float Renderer::VertexPositions[] = {
 	-1.0f,  1.0f, 0.0f, 1.0f,
@@ -178,13 +176,16 @@ bool Renderer::init () {
 	// check extenions
 	if (!checkExtensions ())
 		return false;
-	ALOG ("Extensions: OK");
+	LOGD ("Extensions: OK");
 
 	// load shaders
 	shader displayShader (displayVP, displayFP);
 	displayShader.addAtrib ("vertexCoord", vertexCoordLoc);
 	displayShader.addAtrib ("textureCoord", textureCoordLoc);
 	displaySP = displayShader.loadProgram ();
+	if (!displaySP)
+		return false;
+	LOGD ("Shaders: OK");
 
 	// load coordinates
 	glGenBuffers (2, vboIds);
@@ -226,7 +227,7 @@ bool Renderer::init () {
 
 	factor = displayRefreshRate / videoFps;
 	initialized = true;
-	ALOG ("Initialization: OK");
+	LOGD ("Initialization: OK");
 	return true;
 }
 
@@ -278,11 +279,11 @@ bool Renderer::checkExtensions () {
 		return false;
 
 /*
-	ALOG ("target texture: %i bit, target processing: %i bit", storage16 ? 16 : 10, process16 ? 16 : 10);
-	ALOG ("10 bit texture: %s", extTex10 ? "supported" : "not supported");
-	ALOG ("16 bit texture: %s", extTex16 ? "supported" : "not supported");
-	ALOG ("16 bit processing: %s", extFrag16 ? "supported" : "not supported");
-	ALOG ("write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
+	LOGD ("target texture: %i bit, target processing: %i bit", storage16 ? 16 : 10, process16 ? 16 : 10);
+	LOGD ("10 bit texture: %s", extTex10 ? "supported" : "not supported");
+	LOGD ("16 bit texture: %s", extTex16 ? "supported" : "not supported");
+	LOGD ("16 bit processing: %s", extFrag16 ? "supported" : "not supported");
+	LOGD ("write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 */
 	return true;
 }
@@ -368,23 +369,23 @@ void Renderer::drawFrame () {
 			if (displayCurr->timecode < tc) {
 				if (displayCurr->timecode < tc - 2000 / videoFps) {
 					// if very late - drop current frame
-					ALOG ("hard drop (repeat: %f, factor: %f)", repeat, factor);
+					LOGD ("hard drop (repeat: %f, factor: %f)", repeat, factor);
 					repeat -= 1.0;
 				} else if (newFrame && (repeat >= floor (factor))) {
 					// if just a bit early - try to find best frame to drop (that is repeated more times than others)
-					ALOG ("soft drop (repeat: %f, factor: %f)", repeat, factor);
+					LOGD ("soft drop (repeat: %f, factor: %f)", repeat, factor);
 					repeat -= 1.0;
 				}
 			} else if (displayCurr->timecode > tc + 1000 / videoFps) {
 				if (displayCurr->timecode > tc + 3000 / videoFps) {
 					// if very early - repeat current frame
-					ALOG ("hard repeat (repeat: %f, factor: %f)", repeat, factor);
+					LOGD ("hard repeat (repeat: %f, factor: %f)", repeat, factor);
 					repeat += 1.0;
 				} else if (newFrame && (repeat <= floor (factor))) {
 					// if just a but early - try to find frame best frame to drop (that is repeated less times than others)
 					// < should be better (since equality means that frame would be repeated more times),
 					// but then it will never fix offsync with int factors
-					ALOG ("soft repeat (repeat: %f, factor: %f)", repeat, factor);
+					LOGD ("soft repeat (repeat: %f, factor: %f)", repeat, factor);
 					repeat += 1.0;
 				}
 			}
@@ -405,7 +406,7 @@ void Renderer::drawFrame () {
 }
 
 void Renderer::presentFrame (frameGPUo* f) {
-	//ALOG ("f %i t %i n %i r %.3f f %.3f", frameNumber, f->timecode, tcNow (), repeat, factor);
+	//LOGD ("f %i t %i n %i r %.3f f %.3f", frameNumber, f->timecode, tcNow (), repeat, factor);
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 

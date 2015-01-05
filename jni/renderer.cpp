@@ -46,23 +46,25 @@ Renderer::Renderer () {
 }
 
 Renderer::~Renderer () {
-	decoding = false;
-	uploading = false;
-	//rendering = false;
-	//backbuffering = false;
-	playing = false;
+	if (initialized) {
+		decoding = false;
+		uploading = false;
+		//rendering = false;
+		//backbuffering = false;
+		playing = false;
 
-	decodeThread.join ();
-	uploadThread.join ();
-	//rendererThread.join ();
-	//backbufferThread.join ();
+		decodeThread.join ();
+		uploadThread.join ();
+		//rendererThread.join ();
+		//backbufferThread.join ();
 
-	delete decodeQueue;
-	delete uploadQueue;
-	//delete rendererQueue;
-	//delete backbufferQueue;
+		delete decodeQueue;
+		delete uploadQueue;
+		//delete rendererQueue;
+		//delete backbufferQueue;
 
-	delete displayCurr;
+		delete displayCurr;
+	}
 }
 
 const char* getName () {

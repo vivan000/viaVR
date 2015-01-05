@@ -29,8 +29,6 @@ private:
 	int tcNow ();
 
 	bool checkExtensions ();
-	GLuint loadShader (GLenum type, const char *shaderSrc);
-	GLuint loadProgram (GLuint vertexShader, GLuint fragmentShader);
 
 	void setAspect ();
 	void genContexts ();

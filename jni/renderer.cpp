@@ -6,6 +6,7 @@
 #include <vector>
 #include <android/log.h>
 #include "renderer.h"
+#include "shader.h"
 
 #define ALOG(...) __android_log_print (ANDROID_LOG_INFO, "viaVR", __VA_ARGS__)
 
@@ -179,20 +180,11 @@ bool Renderer::init () {
 		return false;
 	ALOG ("Extensions: OK");
 
-	// ========================= load shaders =========================
-	// load display shaders
-	GLuint hVertexShader = loadShader (GL_VERTEX_SHADER, displayVP);
-	GLuint hFragmentShader = loadShader (GL_FRAGMENT_SHADER, displayFP);
-	if (!hVertexShader || !hFragmentShader)
-		return false;
-	ALOG ("Compiling shaders: OK");
-
-	// ======================== load programs =========================
-	// load display program
-	displaySP = loadProgram (hVertexShader, hFragmentShader);
-	if (!displaySP)
-		return false;
-	ALOG ("Loading program: OK");
+	// load shaders
+	shader displayShader (displayVP, displayFP, true);
+	displayShader.addAtrib ("vertexCoord", vertexCoordLoc);
+	displayShader.addAtrib ("textureCoord", textureCoordLoc);
+	displaySP = displayShader.loadProgram ();
 
 	// load coordinates
 	glGenBuffers (2, vboIds);
@@ -293,67 +285,6 @@ bool Renderer::checkExtensions () {
 	ALOG ("write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 */
 	return true;
-}
-
-GLuint Renderer::loadShader (GLenum type, const char *shaderSrc) {
-	GLuint shader = glCreateShader (type);
-	if (shader == 0) {
-		ALOG ("Error creating shader");
-		return 0;
-	}
-
-	glShaderSource (shader, 1, &shaderSrc, NULL);
-	glCompileShader (shader);
-
-	GLint compiled;
-	glGetShaderiv (shader, GL_COMPILE_STATUS, &compiled);
-	if (!compiled) {
-		GLint infoLen = 0;
-		glGetShaderiv (shader, GL_INFO_LOG_LENGTH, &infoLen);
-		if (infoLen > 1) {
-			char* infoLog = new char[infoLen];
-			glGetShaderInfoLog (shader, infoLen, NULL, infoLog);
-			ALOG ("Error compiling shader:\n%s", infoLog);
-			delete[] infoLog;
-		}
-		glDeleteShader (shader);
-		return 0;
-	}
-
-	return shader;
-}
-
-GLuint Renderer::loadProgram (GLuint vertexShader, GLuint fragmentShader) {
-	GLuint programObject = glCreateProgram();
-	if	(programObject == 0) {
-		ALOG ("Error creating program");
-		return 0;
-	}
-
-	glAttachShader (programObject, vertexShader);
-	glAttachShader (programObject, fragmentShader);
-	glBindAttribLocation (programObject, vertexCoordLoc, "vertexCoord");
-	glBindAttribLocation (programObject, textureCoordLoc, "textureCoord");
-	glLinkProgram (programObject);
-
-	GLint linked;
-	glGetProgramiv (programObject, GL_LINK_STATUS, &linked);
-	if (!linked) {
-		GLint infoLen = 0;
-		glGetProgramiv (programObject, GL_INFO_LOG_LENGTH, &infoLen);
-		if (infoLen > 1) {
-			char* infoLog = new char[infoLen];
-			glGetProgramInfoLog (programObject, infoLen, NULL, infoLog);
-			ALOG ("Error linking program:\n%s", infoLog);
-			delete[] infoLog;
-		}
-		return 0;
-	}
-
-	glDeleteShader (vertexShader);
-	glDeleteShader (fragmentShader);
-
-	return programObject;
 }
 
 void Renderer::setAspect () {

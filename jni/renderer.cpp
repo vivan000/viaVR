@@ -26,9 +26,6 @@ const char* Renderer::displayVP =
 const char* Renderer::displayFP =
 	#include "shaders/displayFrag.h"
 
-const GLuint Renderer::vertexCoordLoc = 0;
-const GLuint Renderer::textureCoordLoc = 1;
-
 const char* Renderer::up420to422FP =
 	#include "shaders/up420to422.h"
 
@@ -49,18 +46,18 @@ Renderer::~Renderer () {
 	if (initialized) {
 		decoding = false;
 		uploading = false;
-		//rendering = false;
+		rendering = false;
 		//backbuffering = false;
 		playing = false;
 
 		decodeThread.join ();
 		uploadThread.join ();
-		//rendererThread.join ();
+		renderThread.join ();
 		//backbufferThread.join ();
 
 		delete decodeQueue;
 		delete uploadQueue;
-		//delete rendererQueue;
+		delete renderQueue;
 		//delete backbufferQueue;
 
 		delete displayCurr;
@@ -182,14 +179,17 @@ bool Renderer::init () {
 
 	// load shaders
 	shader displayShader (displayVP, displayFP);
+	const GLuint vertexCoordLoc = 0;
+	const GLuint textureCoordLoc = 1;
 	displayShader.addAtrib ("vertexCoord", vertexCoordLoc);
 	displayShader.addAtrib ("textureCoord", textureCoordLoc);
-	displaySP = displayShader.loadProgram ();
+	GLuint displaySP = displayShader.loadProgram ();
 	if (!displaySP)
 		return false;
 	LOGD ("Shaders: OK");
 
 	// load coordinates
+	GLuint vboIds[2];
 	glGenBuffers (2, vboIds);
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
@@ -212,10 +212,10 @@ bool Renderer::init () {
 
 	uploadQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
 	uploadThread = std::thread (&Renderer::upload, this);
-/*
-	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
-	decodeThread = std::thread (&Renderer::render, this);
 
+	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
+	renderThread = std::thread (&Renderer::render, this);
+/*
 	backbufferQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
 	backbufferThread = std::thread (&Renderer::backbuffer, this);
 */
@@ -354,6 +354,9 @@ void Renderer::genContexts () {
 	uploadPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
 	uploadPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
 
+	renderContext = eglCreateContext (display, config, mainContext, attribListCtx);
+	renderPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
+	renderPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
 }
 
 void Renderer::drawFrame () {
@@ -418,8 +421,8 @@ void Renderer::presentFrame (frameGPUo* f) {
 }
 
 void Renderer::getNextFrame (frameGPUo* f) {
-	if (!uploadQueue->isEmpty()) {
-		uploadQueue->pop (*f);
+	if (!renderQueue->isEmpty()) {
+		renderQueue->pop (*f);
 
 		frameNumber++;
 		newFrame = true;
@@ -536,22 +539,50 @@ void Renderer::render () {
 	frameGPUo from (videoWidth, videoHeight, videoFourCC);
 	frameGPUo to (videoWidth, videoHeight, pFormat::RGBA);
 
-	frameGPUi t (videoWidth, videoHeight, storage16 ? pFormat::FULL : pFormat::HALF);
+//	frameGPUi t (videoWidth, videoHeight, storage16 ? pFormat::FULL : pFormat::HALF);
+
+	// create FBO
+	GLuint framebuffer;
+	glGenFramebuffers (1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+	glBindTexture (GL_TEXTURE_2D, from.plane);
+	glViewport (0, 0, videoWidth, videoHeight);
+
+	// load shaders
+	shader renderShader (displayVP, displayFP);
+	const GLuint vertexCoordLoc = 0;
+	const GLuint textureCoordLoc = 1;
+	renderShader.addAtrib ("vertexCoord", vertexCoordLoc);
+	renderShader.addAtrib ("textureCoord", textureCoordLoc);
+	GLuint renderSP = renderShader.loadProgram ();
+
+	// load coordinates
+	GLuint vboIds[2];
+	glGenBuffers (2, vboIds);
+	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
+	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
+	glVertexAttribPointer(vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (vertexCoordLoc);
+
+	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
+	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
+	glVertexAttribPointer(textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (textureCoordLoc);
+
+	glUseProgram (renderSP);
 
 	rendering = true;
 	while (rendering) {
 		if (!uploadQueue->isEmpty () && !renderQueue->isFull ()) {
 			uploadQueue->pop (from);
 
-			// from
-			//  V
-			// upscale chroma + merge into 1 plane
-			//  V
-			//  t
-			//  V
-			// scale, dither
-			//  V
-			// to
+			to.timecode = from.timecode;
+			glBindTexture (GL_TEXTURE_2D, from.plane);
+			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
+			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
+			glFlush ();
 
 			renderQueue->push (to);
 		} else if (uploadQueue->isEmpty () && !uploading) {
@@ -560,6 +591,8 @@ void Renderer::render () {
 			usleep (10000);
 		}
 	}
+
+	glDeleteFramebuffers(1, &framebuffer);
 }
 
 void Renderer::backbuffer () {

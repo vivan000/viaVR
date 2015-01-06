@@ -45,7 +45,7 @@ private:
 	videoDecoder* video;
 	int videoWidth, videoHeight;
 	int videoSarWidth, videoSarHeight;
-	double videoFps;
+	int videoFps;
 	pRange videoRange;
 	pMatrix videoMatrix;
 	pFormat videoFourCC;
@@ -86,9 +86,10 @@ private:
 	int targetX, targetY;
 
 	frameGPUo* displayCurr;
-	double repeat, factor;
+	int repeat, repeatLim;
 	bool newFrame;
 	int frameNumber, presentedFrames;
+	int hardLate, softLate, softEarly, hardEarly;
 
 	const static char* displayVP;
 	const static char* displayFP;

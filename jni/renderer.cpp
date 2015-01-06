@@ -89,7 +89,7 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 	videoHeight = 		video->getHeight ();
 	videoSarWidth =		video->getSarWidth ();
 	videoSarHeight =	video->getSarHeight ();
-	videoFps = 			(double) video->getFpsNumerator () / video->getFpsDenominator();
+	videoFps = 			round ((double) video->getFpsNumerator () / video->getFpsDenominator());
 
 	switch (video->getRange ()) {
 		case (int) pRange::UNKNOWN:
@@ -227,7 +227,12 @@ bool Renderer::init () {
 	// create display texture
 	displayCurr = new frameGPUo (videoWidth, videoHeight, pFormat::RGBA);
 
-	factor = displayRefreshRate / videoFps;
+	hardLate = -2000 / videoFps;
+	softLate = 0;
+	softEarly = 2000 / videoFps;
+	hardEarly = 4000 / videoFps;
+	repeatLim = displayRefreshRate / videoFps * videoFps;
+
 	initialized = true;
 	LOGD ("Initialization: OK");
 	return true;
@@ -366,41 +371,33 @@ void Renderer::drawFrame () {
 	if (initialized) {
 		if (playing) {
 			int tc = tcNow ();
-			while (repeat <= 0.0) {
-				repeat += factor;
+			while (repeat <= 0) {
 				getNextFrame (displayCurr);
 			}
 
-			if (displayCurr->timecode < tc) {
-				if (displayCurr->timecode < tc - 2000 / videoFps) {
+			if (displayCurr->timecode < tc + softLate) {
+				if (displayCurr->timecode < tc + hardLate) {
 					// if very late - drop current frame
-					LOGD ("hard drop (repeat: %f, factor: %f)", repeat, factor);
-					repeat -= 1.0;
-				} else if (newFrame && (repeat >= floor (factor))) {
-					// if just a bit early - try to find best frame to drop (that is repeated more times than others)
-					LOGD ("soft drop (repeat: %f, factor: %f)", repeat, factor);
-					repeat -= 1.0;
+					LOGD ("hard drop (repeat: %i)", repeat);
+					repeat -= videoFps;
+				} else if (newFrame && (repeat >= repeatLim)) {
+					// if just a bit late - try to find best frame to drop (that is repeated more times than others)
+					LOGD ("soft drop (repeat: %i)", repeat);
+					repeat -= videoFps;
 				}
-			} else if (displayCurr->timecode > tc + 1000 / videoFps) {
-				if (displayCurr->timecode > tc + 3000 / videoFps) {
+			} else if (displayCurr->timecode > tc + softEarly) {
+				if (displayCurr->timecode > tc + hardEarly) {
 					// if very early - repeat current frame
-					LOGD ("hard repeat (repeat: %f, factor: %f)", repeat, factor);
-					repeat += 1.0;
-				} else if (newFrame && (repeat <= floor (factor))) {
-					// if just a but early - try to find frame best frame to drop (that is repeated less times than others)
-					// < should be better (since equality means that frame would be repeated more times),
-					// but then it will never fix offsync with int factors
-					LOGD ("soft repeat (repeat: %f, factor: %f)", repeat, factor);
-					repeat += 1.0;
+					LOGD ("hard repeat (repeat: %i)", repeat);
+					repeat += videoFps;
+				} else if (newFrame && (repeat <= repeatLim)) {
+					// if just a bit early - try to find frame best frame to repeat (that is repeated less times than others)
+					LOGD ("soft repeat (repeat: %i)", repeat);
+					repeat += videoFps;
 				}
 			}
 
 			presentFrame (displayCurr);
-	/*
-			if ((frameNumber > 10) && (repeat <= 0.0)) {
-				factor = (double) presentedFrames / frameNumber;
-			}
-	*/
 			if (uploadQueue->isEmpty() && !uploading)
 				playing = false;
 		} else {
@@ -411,13 +408,14 @@ void Renderer::drawFrame () {
 }
 
 void Renderer::presentFrame (frameGPUo* f) {
-	//LOGD ("f %i t %i n %i r %.3f f %.3f", frameNumber, f->timecode, tcNow (), repeat, factor);
+	LOGD ("frame %i timecode %i now %i repeat %i", frameNumber, f->timecode, tcNow (), repeat);
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 	presentedFrames++;
-	repeat -= 1.0;
 	newFrame = false;
+
+	repeat -= videoFps;
 }
 
 void Renderer::getNextFrame (frameGPUo* f) {
@@ -427,6 +425,8 @@ void Renderer::getNextFrame (frameGPUo* f) {
 		frameNumber++;
 		newFrame = true;
 	}
+
+	repeat += displayRefreshRate;
 }
 
 void Renderer::play (int timecode) {

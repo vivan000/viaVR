@@ -10,5 +10,5 @@
 "	vec2 uv = mix (texture2D (texture, coord + vec2 (0.0, -pitch)).gb,	\n"
 "		texture2D (texture, coord + vec2 (0.0, pitch)).gb,				\n"
 "		fract (coord.y * pitch * 0.5));									\n"
-"	gl_FragColor = vec3 (y,	uv);										\n"
+"	gl_FragColor = vec4 (y,	uv, 1.0);									\n"
 "}																		\n";

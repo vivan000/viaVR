@@ -12,7 +12,7 @@ public:
 	~Renderer ();
 	bool addVideoDecoder (videoDecoder* video);
 	void setSize (int width, int height);
-	void setRefreshRate (double fps);
+	void setRefreshRate (int fps);
 	bool init ();
 	void drawFrame ();
 	void play (int timecode);
@@ -81,7 +81,7 @@ private:
 	int64_t start;
 
 	int surfaceWidth, surfaceHeight;
-	double displayRefreshRate = 60.0;
+	int displayRefreshRate = 60;
 
 	int targetWidth, targetHeight;
 	int targetX, targetY;

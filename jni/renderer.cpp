@@ -168,7 +168,7 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 void Renderer::setSize (int width, int height) {
 }
 
-void Renderer::setRefreshRate (double fps) {
+void Renderer::setRefreshRate (int fps) {
 	displayRefreshRate = fps;
 }
 

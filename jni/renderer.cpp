@@ -33,8 +33,8 @@ const char* Renderer::up422to444FP =
 	#include "shaders/up422to444.h"
 
 Renderer::Renderer () {
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
+	glClear (GL_COLOR_BUFFER_BIT);
 	initialized = false;
 
 	presentedFrames = 0;
@@ -93,7 +93,7 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 	videoHeight = 		video->getHeight ();
 	videoSarWidth =		video->getSarWidth ();
 	videoSarHeight =	video->getSarHeight ();
-	videoFps = 			round ((double) video->getFpsNumerator () / video->getFpsDenominator());
+	videoFps = 			round ((double) video->getFpsNumerator () / video->getFpsDenominator ());
 
 	switch (video->getRange ()) {
 		case (int) pRange::UNKNOWN:
@@ -196,12 +196,12 @@ bool Renderer::init () {
 	glGenBuffers (2, vboIds);
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
-	glVertexAttribPointer(vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (vertexCoordLoc);
 
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
-	glVertexAttribPointer(textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);
 
 	// set texture unit
@@ -223,7 +223,7 @@ bool Renderer::init () {
 	backbufferThread = std::thread (&Renderer::backbuffer, this);
 */
 	// wait till there's at least 1 frame to show
-	while (uploadQueue->isEmpty()) {
+	while (uploadQueue->isEmpty ()) {
 		usleep (10000);
 	}
 
@@ -262,17 +262,17 @@ bool Renderer::checkExtensions () {
 	bool extFrag16 = false;		// 16-bit processing
 	bool extWriteOnly = false;
 	for (unsigned int i = 0; i < extList.size (); i++) {
-		if (!extList.at(i).compare ("GL_OES_texture_half_float"))
+		if (!extList.at (i).compare ("GL_OES_texture_half_float"))
 			extTex10 = true;
-		if (!extList.at(i).compare ("GL_OES_texture_float"))
+		if (!extList.at (i).compare ("GL_OES_texture_float"))
 			extTex16 = true;
-		if (!extList.at(i).compare ("GL_EXT_color_buffer_half_float"))
+		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float"))
 			extCol10 = true;
-		if (!extList.at(i).compare ("GL_EXT_color_buffer_float"))
+		if (!extList.at (i).compare ("GL_EXT_color_buffer_float"))
 			extCol16 = true;
-		if (!extList.at(i).compare ("GL_OES_fragment_precision_high"))
+		if (!extList.at (i).compare ("GL_OES_fragment_precision_high"))
 			extFrag16 = true;
-		if (!extList.at(i).compare ("GL_QCOM_writeonly_rendering"))
+		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering"))
 			extWriteOnly = true;
 	}
 
@@ -368,7 +368,7 @@ void Renderer::genContexts () {
 }
 
 void Renderer::drawFrame () {
-	glFinish();
+	glFinish ();
 	glClear (GL_COLOR_BUFFER_BIT);
 
 	if (initialized) {
@@ -401,7 +401,7 @@ void Renderer::drawFrame () {
 			}
 
 			presentFrame (displayCurr);
-			if (uploadQueue->isEmpty() && !uploading)
+			if (uploadQueue->isEmpty () && !uploading)
 				playing = false;
 		} else {
 			glBindTexture (GL_TEXTURE_2D, displayCurr->plane);
@@ -422,7 +422,7 @@ void Renderer::presentFrame (frameGPUo* f) {
 }
 
 void Renderer::getNextFrame (frameGPUo* f) {
-	if (!renderQueue->isEmpty()) {
+	if (!renderQueue->isEmpty ()) {
 		renderQueue->pop (*f);
 
 		frameNumber++;
@@ -547,7 +547,7 @@ void Renderer::render () {
 	// create FBO
 	GLuint framebuffer;
 	glGenFramebuffers (1, &framebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
 
 	glBindTexture (GL_TEXTURE_2D, from.plane);
 	glViewport (0, 0, videoWidth, videoHeight);
@@ -562,11 +562,11 @@ void Renderer::render () {
 
 	// load coordinates
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
-	glVertexAttribPointer(vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (vertexCoordLoc);
 
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
-	glVertexAttribPointer(textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);
 
 	glUseProgram (renderSP);
@@ -591,7 +591,7 @@ void Renderer::render () {
 		}
 	}
 
-	glDeleteFramebuffers(1, &framebuffer);
+	glDeleteFramebuffers (1, &framebuffer);
 }
 
 void Renderer::backbuffer () {

@@ -6,6 +6,6 @@
 "varying   vec2      coord;												\n"
 "																		\n"
 "void main () {															\n"
-"    gl_FragColor = vec3 (texture2D (Y, coord).r,						\n"
-"		texture2D (Cb, coord).r, texture2D (Cr, coord).r);				\n"
+"    gl_FragColor = vec4 (texture2D (Y, coord).r,						\n"
+"		texture2D (Cb, coord).r, texture2D (Cr, coord).r, 1.0);			\n"
 "}																		\n";

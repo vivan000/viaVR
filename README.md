@@ -3,6 +3,7 @@ Advanced video renderer for Android.
 
 ### Goals for initial release:
 - large buffers to ensure smooth playback.
+- smart presentation logic to minimize stutter.
 - input support for common video formats (4:2:0, 4:2:2, 4:4:4 at 8, 10 and 16 bits).
 - 10/16-bit processing.
 - proper color conversion (BT.709 support, correct chroma location, etc.).

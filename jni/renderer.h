@@ -22,7 +22,8 @@ public:
 	// void setSubtitleDecoder ();
 	// void flush ();
 	const char* getName ();
-	const char* getVersion ();
+	int getMajorVersion ();
+	int getMinorVersion ();
 
 private:
 	int64_t nanotime ();

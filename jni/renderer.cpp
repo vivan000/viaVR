@@ -68,8 +68,12 @@ const char* getName () {
 	return "viaVR";
 }
 
-const char* getVersion () {
-	return "0.1";
+int getMajorVersion () {
+	return 0;
+}
+
+int getMinorVersion () {
+	return 0;
 }
 
 int64_t Renderer::nanotime () {

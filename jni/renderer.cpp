@@ -189,7 +189,6 @@ bool Renderer::init () {
 	LOGD ("Shaders: OK");
 
 	// load coordinates
-	GLuint vboIds[2];
 	glGenBuffers (2, vboIds);
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
@@ -558,15 +557,11 @@ void Renderer::render () {
 	GLuint renderSP = renderShader.loadProgram ();
 
 	// load coordinates
-	GLuint vboIds[2];
-	glGenBuffers (2, vboIds);
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
-	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
 	glVertexAttribPointer(vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (vertexCoordLoc);
 
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
-	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
 	glVertexAttribPointer(textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);
 

@@ -5,34 +5,34 @@
 #include <string>
 #include <vector>
 #include "log.h"
-#include "renderer.h"
+#include "videoRenderer.h"
 #include "shader.h"
 
-const float Renderer::VertexPositions[] = {
+const float videoRenderer::VertexPositions[] = {
 	-1.0f,  1.0f, 0.0f, 1.0f,
 	 1.0f,  1.0f, 0.0f, 1.0f,
 	-1.0f, -1.0f, 0.0f, 1.0f,
 	 1.0f, -1.0f, 0.0f, 1.0f};
 
-const float Renderer::VertexTexcoord[] = {
+const float videoRenderer::VertexTexcoord[] = {
 	0.0f, 0.0f,
 	1.0f, 0.0f,
 	0.0f, 1.0f,
 	1.0f, 1.0f};
 
-const char* Renderer::displayVP =
+const char* videoRenderer::displayVP =
 	#include "shaders/displayVert.h"
 
-const char* Renderer::displayFP =
+const char* videoRenderer::displayFP =
 	#include "shaders/displayFrag.h"
 
-const char* Renderer::up420to422FP =
+const char* videoRenderer::up420to422FP =
 	#include "shaders/up420to422.h"
 
-const char* Renderer::up422to444FP =
+const char* videoRenderer::up422to444FP =
 	#include "shaders/up422to444.h"
 
-Renderer::Renderer () {
+videoRenderer::videoRenderer () {
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
 	glClear (GL_COLOR_BUFFER_BIT);
 	initialized = false;
@@ -42,7 +42,7 @@ Renderer::Renderer () {
 	frameNumber = 0;
 }
 
-Renderer::~Renderer () {
+videoRenderer::~videoRenderer () {
 	if (initialized) {
 		decoding = false;
 		uploading = false;
@@ -76,18 +76,18 @@ int getMinorVersion () {
 	return 0;
 }
 
-int64_t Renderer::nanotime () {
+int64_t videoRenderer::nanotime () {
 	struct timespec now;
 	clock_gettime (CLOCK_MONOTONIC, &now);
 	return (int64_t) now.tv_sec * 1000000000LL + now.tv_nsec;
 }
 
-int Renderer::tcNow () {
+int videoRenderer::tcNow () {
 	return (int) ((nanotime () - start) / 1000000);
 }
 
-bool Renderer::addVideoDecoder (videoDecoder* video) {
-	Renderer::video = video;
+bool videoRenderer::addVideoDecoder (videoDecoder* video) {
+	videoRenderer::video = video;
 
 	videoWidth = 		video->getWidth ();
 	videoHeight = 		video->getHeight ();
@@ -165,14 +165,14 @@ bool Renderer::addVideoDecoder (videoDecoder* video) {
 	return true;
 }
 
-void Renderer::setSize (int width, int height) {
+void videoRenderer::setSize (int width, int height) {
 }
 
-void Renderer::setRefreshRate (int fps) {
+void videoRenderer::setRefreshRate (int fps) {
 	displayRefreshRate = fps;
 }
 
-bool Renderer::init () {
+bool videoRenderer::init () {
 	genContexts ();
 	setAspect ();
 
@@ -211,16 +211,16 @@ bool Renderer::init () {
 
 	// start threads
 	decodeQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
-	decodeThread = std::thread (&Renderer::decode, this);
+	decodeThread = std::thread (&videoRenderer::decode, this);
 
 	uploadQueue = new queue<frameGPUu> (8, videoWidth, videoHeight, videoFourCC);
-	uploadThread = std::thread (&Renderer::upload, this);
+	uploadThread = std::thread (&videoRenderer::upload, this);
 
 	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
-	renderThread = std::thread (&Renderer::render, this);
+	renderThread = std::thread (&videoRenderer::render, this);
 /*
 	backbufferQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
-	backbufferThread = std::thread (&Renderer::backbuffer, this);
+	backbufferThread = std::thread (&videoRenderer::backbuffer, this);
 */
 	// wait till there's at least 1 frame to show
 	while (uploadQueue->isEmpty ()) {
@@ -241,7 +241,7 @@ bool Renderer::init () {
 	return true;
 }
 
-bool Renderer::checkExtensions () {
+bool videoRenderer::checkExtensions () {
 	std::string ext ((const char*) glGetString (GL_EXTENSIONS));
 	std::vector<std::string> extList;
 
@@ -298,7 +298,7 @@ bool Renderer::checkExtensions () {
 	return true;
 }
 
-void Renderer::setAspect () {
+void videoRenderer::setAspect () {
 	int rectangle[4];
 	glGetIntegerv (GL_VIEWPORT, rectangle);
 	surfaceWidth = rectangle[2] - rectangle[0];
@@ -348,7 +348,7 @@ void Renderer::setAspect () {
 	glViewport (targetX, targetY, targetWidth, targetHeight);
 }
 
-void Renderer::genContexts () {
+void videoRenderer::genContexts () {
 	mainContext = eglGetCurrentContext ();
 	display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
 
@@ -367,7 +367,7 @@ void Renderer::genContexts () {
 	renderPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
 }
 
-void Renderer::drawFrame () {
+void videoRenderer::drawFrame () {
 	glFinish ();
 	glClear (GL_COLOR_BUFFER_BIT);
 
@@ -410,7 +410,7 @@ void Renderer::drawFrame () {
 	}
 }
 
-void Renderer::presentFrame (frameGPUo* f) {
+void videoRenderer::presentFrame (frameGPUo* f) {
 	LOGD ("frame %i timecode %i now %i repeat %i", frameNumber, f->timecode, tcNow (), repeat);
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
@@ -421,7 +421,7 @@ void Renderer::presentFrame (frameGPUo* f) {
 	repeat -= videoFps;
 }
 
-void Renderer::getNextFrame (frameGPUo* f) {
+void videoRenderer::getNextFrame (frameGPUo* f) {
 	if (!renderQueue->isEmpty ()) {
 		renderQueue->pop (*f);
 
@@ -432,17 +432,17 @@ void Renderer::getNextFrame (frameGPUo* f) {
 	repeat += displayRefreshRate;
 }
 
-void Renderer::play (int timecode) {
+void videoRenderer::play (int timecode) {
 	start = nanotime () - (int64_t) timecode * 1000000LL;
 	playing = true;
 }
 
-void Renderer::pause () {
+void videoRenderer::pause () {
 	start = 0;
 	playing = false;
 }
 
-void Renderer::decode () {
+void videoRenderer::decode () {
 	frameCPU t (videoWidth, videoHeight, videoFourCC);
 	int size = videoWidth * videoHeight * chooseBpp (videoFourCC) / 8;
 
@@ -462,7 +462,7 @@ void Renderer::decode () {
 	}
 }
 
-void Renderer::upload () {
+void videoRenderer::upload () {
 	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer2, uploadContext);
 
 	frameCPU from (videoWidth, videoHeight, videoFourCC);
@@ -534,7 +534,7 @@ void Renderer::upload () {
 	}
 }
 
-void Renderer::render () {
+void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (videoWidth, videoHeight, videoFourCC);
@@ -610,7 +610,7 @@ void Renderer::render () {
 	glDeleteFramebuffers (1, &framebuffer);
 }
 
-void Renderer::backbuffer () {
+void videoRenderer::backbuffer () {
 	eglMakeCurrent (display, backbufferPBuffer, backbufferPBuffer2, backbufferContext);
 
 	frameGPUo t (videoWidth, videoHeight, videoFourCC);

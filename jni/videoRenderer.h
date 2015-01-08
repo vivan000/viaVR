@@ -6,10 +6,10 @@
 #include "queue.h"
 #include "videoDecoder.h"
 
-class Renderer {
+class videoRenderer {
 public:
-	Renderer ();
-	~Renderer ();
+	videoRenderer ();
+	~videoRenderer ();
 	bool addVideoDecoder (videoDecoder* video);
 	void setSize (int width, int height);
 	void setRefreshRate (int fps);

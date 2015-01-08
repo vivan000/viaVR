@@ -1,7 +1,7 @@
 #include "rendererWrapper.h"
-#include "renderer.h"
+#include "videoRenderer.h"
 
-Renderer* r;
+videoRenderer* r;
 videoDecoder video;
 
 void on_surface_created () {
@@ -10,7 +10,7 @@ void on_surface_created () {
 		delete r;
 		r = NULL;
 	}
-	r = new Renderer;
+	r = new videoRenderer;
 	r->addVideoDecoder (&video);
 	r->init ();
 	r->play (timecode);

@@ -213,7 +213,7 @@ bool Renderer::init () {
 	decodeQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
 	decodeThread = std::thread (&Renderer::decode, this);
 
-	uploadQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
+	uploadQueue = new queue<frameGPUu> (8, videoWidth, videoHeight, videoFourCC);
 	uploadThread = std::thread (&Renderer::upload, this);
 
 	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
@@ -466,7 +466,7 @@ void Renderer::upload () {
 	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer2, uploadContext);
 
 	frameCPU from (videoWidth, videoHeight, videoFourCC);
-	frameGPUo to (videoWidth, videoHeight, videoFourCC);
+	frameGPUu to (videoWidth, videoHeight, videoFourCC);
 
 	int planes = chooseUPlanes (videoFourCC);
 	int widthChroma = chooseUHalf (videoFourCC, false, true) ? videoWidth / 2 : videoWidth;
@@ -506,25 +506,23 @@ void Renderer::upload () {
 			decodeQueue->pop (from);
 
 			to.timecode = from.timecode;
-			glBindTexture (GL_TEXTURE_2D, to.plane);
-			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, videoWidth, videoHeight, GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid*) from.plane);
-/*
+
 			glBindTexture (GL_TEXTURE_2D, to.plane[0]);
 			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, videoWidth, videoHeight,
-					formatLuma, GL_UNSIGNED_BYTE, (GLvoid*) from.plane);
+				formatLuma, GL_UNSIGNED_BYTE, (GLvoid*) from.plane);
 
 			if (planes > 1) {
 				glBindTexture (GL_TEXTURE_2D, to.plane[1]);
 				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, widthChroma, heightChroma,
-						formatChroma, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + offset1));
+					formatChroma, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + offset1));
 			}
 
 			if (planes > 2) {
 				glBindTexture (GL_TEXTURE_2D, to.plane[2]);
 				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, widthChroma, heightChroma,
-						formatChroma, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + offset2));
+					formatChroma, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + offset2));
 			}
-*/
+
 			glFlush ();
 
 			uploadQueue->push (to);
@@ -539,8 +537,11 @@ void Renderer::upload () {
 void Renderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
-	frameGPUo from (videoWidth, videoHeight, videoFourCC);
+	frameGPUu from (videoWidth, videoHeight, videoFourCC);
 	frameGPUo to (videoWidth, videoHeight, pFormat::RGBA);
+
+	const GLuint vertexCoordLoc = 0;
+	const GLuint textureCoordLoc = 1;
 
 //	frameGPUi t (videoWidth, videoHeight, storage16 ? pFormat::FULL : pFormat::HALF);
 
@@ -548,14 +549,12 @@ void Renderer::render () {
 	GLuint framebuffer;
 	glGenFramebuffers (1, &framebuffer);
 	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-
-	glBindTexture (GL_TEXTURE_2D, from.plane);
 	glViewport (0, 0, videoWidth, videoHeight);
 
 	// load shaders
-	shader renderShader (displayVP, displayFP);
-	const GLuint vertexCoordLoc = 0;
-	const GLuint textureCoordLoc = 1;
+	const char* renderFP =
+		#include "shaders/upload3ToInternal.h"
+	shader renderShader (displayVP, renderFP, "highp");
 	renderShader.addAtrib ("vertexCoord", vertexCoordLoc);
 	renderShader.addAtrib ("textureCoord", textureCoordLoc);
 	GLuint renderSP = renderShader.loadProgram ();
@@ -569,7 +568,15 @@ void Renderer::render () {
 	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);
 
+	GLint renderYLoc = glGetUniformLocation (renderSP, "Y");
+	GLint renderCbLoc = glGetUniformLocation (renderSP, "Cb");
+	GLint renderCrLoc = glGetUniformLocation (renderSP, "Cr");
+
 	glUseProgram (renderSP);
+
+	glUniform1i (renderYLoc, 0);
+	glUniform1i (renderCbLoc, 1);
+	glUniform1i (renderCrLoc, 2);
 
 	rendering = true;
 	while (rendering) {
@@ -577,7 +584,16 @@ void Renderer::render () {
 			uploadQueue->pop (from);
 
 			to.timecode = from.timecode;
-			glBindTexture (GL_TEXTURE_2D, from.plane);
+
+			glActiveTexture (GL_TEXTURE0 + 0);
+			glBindTexture(GL_TEXTURE_2D, from.plane[0]);
+
+			glActiveTexture (GL_TEXTURE0 + 1);
+			glBindTexture(GL_TEXTURE_2D, from.plane[1]);
+
+			glActiveTexture (GL_TEXTURE0 + 2);
+			glBindTexture(GL_TEXTURE_2D, from.plane[2]);
+
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 

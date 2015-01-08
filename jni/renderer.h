@@ -54,7 +54,7 @@ private:
 	bool decoding, uploading, rendering, backbuffering, playing;
 
 	queue<frameCPU>* decodeQueue;
-	queue<frameGPUo>* uploadQueue;
+	queue<frameGPUu>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
 	queue<frameGPUo>* backbufferQueue;
 

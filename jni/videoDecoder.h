@@ -29,5 +29,7 @@ private:
 	int range, matrix, fourCC;
 
 	int decoderCount;
-	unsigned int* data;
+	unsigned char* dataR;
+	unsigned char* dataG;
+	unsigned char* dataB;
 };

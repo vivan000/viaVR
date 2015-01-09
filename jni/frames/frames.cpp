@@ -117,3 +117,24 @@ GLenum chooseType (pFormat format) {
 	}
 	return 0;
 }
+
+bool chooseDoubleOffset (pFormat format) {
+	switch (format) {
+		case pFormat::P008:
+		case pFormat::P208:
+		case pFormat::P408:
+		case pFormat::NV12:
+		case pFormat::NV21:
+		case pFormat::RGBA:
+			return false;
+
+		case pFormat::P010:
+		case pFormat::P210:
+		case pFormat::P410:
+		case pFormat::P016:
+		case pFormat::P216:
+		case pFormat::P416:
+			return true;
+	}
+	return false;
+}

@@ -480,32 +480,8 @@ void videoRenderer::upload () {
 	int	heightChroma = chooseUHalf (videoFourCC, false, false) ? videoHeight / 2 : videoHeight;
 	GLenum formatLuma = chooseUFormat (videoFourCC, true);
 	GLenum formatChroma = chooseUFormat (videoFourCC, false);
-
-	int offset1, offset2;
-	switch (videoFourCC) {
-		case pFormat::P008:
-		case pFormat::P208:
-		case pFormat::P408:
-		case pFormat::NV12:
-		case pFormat::NV21:
-		case pFormat::RGBA:
-			offset1 = videoWidth * videoHeight;
-			offset2 = offset1 + widthChroma * heightChroma;
-			break;
-
-		case pFormat::P010:
-		case pFormat::P210:
-		case pFormat::P410:
-		case pFormat::P016:
-		case pFormat::P216:
-		case pFormat::P416:
-			offset1 = videoWidth * videoHeight * 2;
-			offset2 = offset1 + widthChroma * heightChroma * 2;
-			break;
-
-		default:
-			return;
-	}
+	int offset1 = videoWidth * videoHeight * (chooseDoubleOffset (videoFourCC) ? 2 : 1);
+	int offset2 = offset1 + widthChroma * heightChroma * (chooseDoubleOffset (videoFourCC) ? 2 : 1);
 
 	uploading = true;
 	while (uploading) {

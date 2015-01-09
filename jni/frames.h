@@ -49,6 +49,7 @@ int chooseUPlanes (pFormat format);
 GLenum chooseUFormat (pFormat format, bool first);
 bool chooseUHalf (pFormat format, bool first, bool width);
 GLenum chooseType (pFormat format);
+bool chooseDoubleOffset (pFormat format);
 
 // frame for upload - CPU
 class frameCPU {

@@ -40,39 +40,31 @@ private:
 	void upload ();
 	void decode ();
 	void render ();
-	void backbuffer ();
 
 	// video config
 	videoDecoder* video;
-	int videoWidth, videoHeight;
+	videoInfo* info;
 	int videoSarWidth, videoSarHeight;
 	int videoFps;
-	pRange videoRange;
-	pMatrix videoMatrix;
-	pFormat videoFourCC;
 
-	bool decoding, uploading, rendering, backbuffering, playing;
+	bool decoding, uploading, rendering, playing;
 
 	queue<frameCPU>* decodeQueue;
 	queue<frameGPUu>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
-	queue<frameGPUo>* backbufferQueue;
 
 	std::thread decodeThread;
 	std::thread uploadThread;
 	std::thread renderThread;
-	std::thread backbufferThread;
 
 	EGLContext mainContext;
 	EGLContext uploadContext;
 	EGLContext renderContext;
-	EGLContext backbufferContext;
 
 	EGLDisplay display;
 
 	EGLSurface uploadPBuffer, uploadPBuffer2;
 	EGLSurface renderPBuffer, renderPBuffer2;
-	EGLSurface backbufferPBuffer, backbufferPBuffer2;
 
 	bool storage16 = false;
 	bool process16 = false;

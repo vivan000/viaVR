@@ -47,21 +47,20 @@ videoRenderer::~videoRenderer () {
 		decoding = false;
 		uploading = false;
 		rendering = false;
-		//backbuffering = false;
 		playing = false;
 
 		decodeThread.join ();
 		uploadThread.join ();
 		renderThread.join ();
-		//backbufferThread.join ();
 
 		delete decodeQueue;
 		delete uploadQueue;
 		delete renderQueue;
-		//delete backbufferQueue;
 
 		delete displayCurr;
 	}
+
+	delete info;
 }
 
 const char* getName () {
@@ -88,86 +87,22 @@ int videoRenderer::tcNow () {
 
 bool videoRenderer::addVideoDecoder (videoDecoder* video) {
 	videoRenderer::video = video;
+	info = new videoInfo (video->getWidth (), video->getHeight (),
+		video->getFourCC (), video->getRange (), video->getMatrix ());
 
-	videoWidth = 		video->getWidth ();
-	videoHeight = 		video->getHeight ();
+	if (!info->init)
+		return false;
+
 	videoSarWidth =		video->getSarWidth ();
 	videoSarHeight =	video->getSarHeight ();
 	videoFps = 			round ((double) video->getFpsNumerator () / video->getFpsDenominator ());
 
-	switch (video->getRange ()) {
-		case (int) pRange::UNKNOWN:
-		case (int) pRange::TV:
-			videoRange = pRange::TV;
-			break;
-		case (int) pRange::PC:
-			videoRange = pRange::PC;
-			break;
-		default:
-			return false;
-	}
-
-	switch (video->getMatrix ()) {
-		case (int) pMatrix::UNKNOWN:
-			videoMatrix = videoWidth > 1024 ? pMatrix::BT709 : pMatrix::BT601;
-			break;
-		case (int) pMatrix::BT601:
-			videoMatrix = pMatrix::BT601;
-			break;
-		case (int) pMatrix::BT709:
-			videoMatrix = pMatrix::BT709;
-			break;
-		default:
-			return false;
-	}
-
-	switch (video->getFourCC ()) {
-		case (int) pFormat::P008:
-			videoFourCC = pFormat::P008;
-			break;
-		case (int) pFormat::P208:
-			videoFourCC = pFormat::P208;
-			break;
-		case (int) pFormat::P408:
-			videoFourCC = pFormat::P408;
-			break;
-		case (int) pFormat::P010:
-			videoFourCC = pFormat::P010;
-			break;
-		case (int) pFormat::P210:
-			videoFourCC = pFormat::P210;
-			break;
-		case (int) pFormat::P410:
-			videoFourCC = pFormat::P410;
-			break;
-		case (int) pFormat::P016:
-			videoFourCC = pFormat::P016;
-			break;
-		case (int) pFormat::P216:
-			videoFourCC = pFormat::P216;
-			break;
-		case (int) pFormat::P416:
-			videoFourCC = pFormat::P416;
-			break;
-		case (int) pFormat::NV12:
-			videoFourCC = pFormat::NV12;
-			break;
-		case (int) pFormat::NV21:
-			videoFourCC = pFormat::NV21;
-			break;
-		case (int) pFormat::RGBA:
-			videoFourCC = pFormat::RGBA;
-			break;
-		default:
-			return false;
-	}
-
 	LOGD ("Video info:");
-	LOGD ("Video %ix%i (%i:%i)", videoWidth, videoHeight, videoSarWidth, videoSarHeight);
-	LOGD ("FourCC: %c%c%c%c", reinterpret_cast <char*> (&videoFourCC)[0], reinterpret_cast <char*> (&videoFourCC)[1],
-		reinterpret_cast <char*> (&videoFourCC)[2], reinterpret_cast <char*> (&videoFourCC)[3]);
-	LOGD ("Matrix: %s (%s)", videoMatrix == pMatrix::BT709 ? "BT.709" : "BT.601", (int) videoMatrix == video->getMatrix () ? "upstream" : "guess");
-	LOGD ("Range: %s (%s)",	videoRange == pRange::TV ? "TV" : "PC",	(int) videoRange == video->getRange () ? "upstream" : "guess");
+	LOGD ("Video %ix%i (%i:%i)", info->width, info->height, videoSarWidth, videoSarHeight);
+	LOGD ("FourCC: %c%c%c%c", reinterpret_cast <char*> (&info->fourCC)[0], reinterpret_cast <char*> (&info->fourCC)[1],
+		reinterpret_cast <char*> (&info->fourCC)[2], reinterpret_cast <char*> (&info->fourCC)[3]);
+	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", (int) info->matrix == video->getMatrix () ? "upstream" : "guess");
+	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", (int) info->range == video->getRange () ? "upstream" : "guess");
 	LOGD ("Framerate: %i/%i", video->getFpsNumerator (), video->getFpsDenominator ());
 
 	return true;
@@ -218,25 +153,22 @@ bool videoRenderer::init () {
 	glUniform1i (displayTLoc, 0);
 
 	// start threads
-	decodeQueue = new queue<frameCPU> (8, videoWidth, videoHeight, videoFourCC);
+	decodeQueue = new queue<frameCPU> (8, info);
 	decodeThread = std::thread (&videoRenderer::decode, this);
 
-	uploadQueue = new queue<frameGPUu> (8, videoWidth, videoHeight, videoFourCC);
+	uploadQueue = new queue<frameGPUu> (8, info);
 	uploadThread = std::thread (&videoRenderer::upload, this);
 
-	renderQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
+	renderQueue = new queue<frameGPUo> (8, info);
 	renderThread = std::thread (&videoRenderer::render, this);
-/*
-	backbufferQueue = new queue<frameGPUo> (8, videoWidth, videoHeight, videoFourCC);
-	backbufferThread = std::thread (&videoRenderer::backbuffer, this);
-*/
+
 	// wait till there's at least 1 frame to show
 	while (uploadQueue->isEmpty ()) {
 		usleep (10000);
 	}
 
 	// create display texture
-	displayCurr = new frameGPUo (videoWidth, videoHeight, pFormat::RGBA);
+	displayCurr = new frameGPUo (info);
 
 	hardLate = -2000 / videoFps;
 	softLate = 0;
@@ -317,36 +249,36 @@ void videoRenderer::setAspect () {
 		case 0:
 			targetX = 0;
 			targetY = 0;
-			targetWidth = videoWidth;
-			targetHeight = videoHeight;
+			targetWidth = info->width;
+			targetHeight = info->height;
 			break;
 
 		// touch from inside
 		case 1:
-			if ((long long) surfaceWidth * videoHeight * videoSarHeight < (long long) videoWidth * videoSarWidth * surfaceHeight) {
+			if ((long long) surfaceWidth * info->height * videoSarHeight < (long long) info->width * videoSarWidth * surfaceHeight) {
 				targetX = 0;
 				targetWidth = surfaceWidth;
-				targetHeight = (long long) surfaceWidth * videoHeight * videoSarHeight / videoWidth / videoSarWidth;
+				targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
 				targetY = (surfaceHeight - targetHeight) / 2;
 			} else {
 				targetY = 0;
 				targetHeight = surfaceHeight;
-				targetWidth = (long long) surfaceHeight * videoWidth * videoSarWidth / videoHeight / videoSarHeight;
+				targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
 				targetX = (surfaceWidth - targetWidth) / 2;
 			}
 			break;
 
 		// touch from outside
 		case 2:
-			if ((long long) surfaceWidth * videoHeight * videoSarHeight > (long long) videoWidth * videoSarWidth * surfaceHeight) {
+			if ((long long) surfaceWidth * info->height * videoSarHeight > (long long) info->width * videoSarWidth * surfaceHeight) {
 				targetX = 0;
 				targetWidth = surfaceWidth;
-				targetHeight = (long long) surfaceWidth * videoHeight * videoSarHeight / videoWidth / videoSarWidth;
+				targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
 				targetY = (surfaceHeight - targetHeight) / 2;
 			} else {
 				targetY = 0;
 				targetHeight = surfaceHeight;
-				targetWidth = (long long) surfaceHeight * videoWidth * videoSarWidth / videoHeight / videoSarHeight;
+				targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
 				targetX = (surfaceWidth - targetWidth) / 2;
 			}
 			break;
@@ -450,8 +382,8 @@ void videoRenderer::pause () {
 }
 
 void videoRenderer::decode () {
-	frameCPU t (videoWidth, videoHeight, videoFourCC);
-	int size = videoWidth * videoHeight * chooseBpp (videoFourCC) / 8;
+	frameCPU t (info);
+	int size = info->width * info->height * info->Bpp / 8;
 
 	decoding = true;
 	while (decoding) {
@@ -472,16 +404,8 @@ void videoRenderer::decode () {
 void videoRenderer::upload () {
 	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer2, uploadContext);
 
-	frameCPU from (videoWidth, videoHeight, videoFourCC);
-	frameGPUu to (videoWidth, videoHeight, videoFourCC);
-
-	int planes = chooseUPlanes (videoFourCC);
-	int widthChroma = chooseUHalf (videoFourCC, false, true) ? videoWidth / 2 : videoWidth;
-	int	heightChroma = chooseUHalf (videoFourCC, false, false) ? videoHeight / 2 : videoHeight;
-	GLenum formatLuma = chooseUFormat (videoFourCC, true);
-	GLenum formatChroma = chooseUFormat (videoFourCC, false);
-	int offset1 = videoWidth * videoHeight * (chooseDoubleOffset (videoFourCC) ? 2 : 1);
-	int offset2 = offset1 + widthChroma * heightChroma * (chooseDoubleOffset (videoFourCC) ? 2 : 1);
+	frameCPU from (info);
+	frameGPUu to (info);
 
 	uploading = true;
 	while (uploading) {
@@ -491,19 +415,19 @@ void videoRenderer::upload () {
 			to.timecode = from.timecode;
 
 			glBindTexture (GL_TEXTURE_2D, to.plane[0]);
-			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, videoWidth, videoHeight,
-				formatLuma, GL_UNSIGNED_BYTE, (GLvoid*) from.plane);
+			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->width, info->height,
+				info->lumaFormat, GL_UNSIGNED_BYTE, (GLvoid*) from.plane);
 
-			if (planes > 1) {
+			if (info->planes > 1) {
 				glBindTexture (GL_TEXTURE_2D, to.plane[1]);
-				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, widthChroma, heightChroma,
-					formatChroma, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + offset1));
+				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
+					info->chromaFormat, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + info->offset1));
 			}
 
-			if (planes > 2) {
+			if (info->planes > 2) {
 				glBindTexture (GL_TEXTURE_2D, to.plane[2]);
-				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, widthChroma, heightChroma,
-					formatChroma, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + offset2));
+				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
+					info->chromaFormat, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + info->offset2));
 			}
 
 			glFlush ();
@@ -520,19 +444,17 @@ void videoRenderer::upload () {
 void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
-	frameGPUu from (videoWidth, videoHeight, videoFourCC);
-	frameGPUo to (videoWidth, videoHeight, pFormat::RGBA);
+	frameGPUu from (info);
+	frameGPUo to (info);
 
 	const GLuint vertexCoordLoc = 0;
 	const GLuint textureCoordLoc = 1;
-
-//	frameGPUi t (videoWidth, videoHeight, storage16 ? pFormat::FULL : pFormat::HALF);
 
 	// create FBO
 	GLuint framebuffer;
 	glGenFramebuffers (1, &framebuffer);
 	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-	glViewport (0, 0, videoWidth, videoHeight);
+	glViewport (0, 0, info->width, info->height);
 
 	// load shaders
 	const char* renderFP =
@@ -591,23 +513,4 @@ void videoRenderer::render () {
 	}
 
 	glDeleteFramebuffers (1, &framebuffer);
-}
-
-void videoRenderer::backbuffer () {
-	eglMakeCurrent (display, backbufferPBuffer, backbufferPBuffer2, backbufferContext);
-
-	frameGPUo t (videoWidth, videoHeight, videoFourCC);
-
-	backbuffering = true;
-	while (backbuffering) {
-		if (!renderQueue->isEmpty () && !backbufferQueue->isFull ()) {
-			renderQueue->pop (t);
-
-			backbufferQueue->push (t);
-		} else if (renderQueue->isEmpty () && !rendering) {
-			backbuffering = false;
-		} else {
-			usleep (10000);
-		}
-	}
 }

@@ -1,7 +1,7 @@
 #include "frames.h"
 
-frameCPU::frameCPU (int w, int h, pFormat f) {
-	plane = new char[w * h * chooseBpp (f) / 8];
+frameCPU::frameCPU (videoInfo* f) {
+	plane = new char[f->width * f->height * f->Bpp / 8];
 
 	timecode = 0;
 }

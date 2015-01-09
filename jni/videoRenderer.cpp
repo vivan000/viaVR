@@ -162,6 +162,14 @@ bool videoRenderer::addVideoDecoder (videoDecoder* video) {
 			return false;
 	}
 
+	LOGD ("Video info:");
+	LOGD ("Video %ix%i (%i:%i)", videoWidth, videoHeight, videoSarWidth, videoSarHeight);
+	LOGD ("FourCC: %c%c%c%c", reinterpret_cast <char*> (&videoFourCC)[0], reinterpret_cast <char*> (&videoFourCC)[1],
+		reinterpret_cast <char*> (&videoFourCC)[2], reinterpret_cast <char*> (&videoFourCC)[3]);
+	LOGD ("Matrix: %s (%s)", videoMatrix == pMatrix::BT709 ? "BT.709" : "BT.601", (int) videoMatrix == video->getMatrix () ? "upstream" : "guess");
+	LOGD ("Range: %s (%s)",	videoRange == pRange::TV ? "TV" : "PC",	(int) videoRange == video->getRange () ? "upstream" : "guess");
+	LOGD ("Framerate: %i/%i", video->getFpsNumerator (), video->getFpsDenominator ());
+
 	return true;
 }
 
@@ -288,13 +296,12 @@ bool videoRenderer::checkExtensions () {
 	if (process16 && !extFrag16)
 		return false;
 
-/*
-	LOGD ("target texture: %i bit, target processing: %i bit", storage16 ? 16 : 10, process16 ? 16 : 10);
+	LOGD ("Extensions:");
+	LOGD ("Target texture: %i bit, target processing: %i bit", storage16 ? 16 : 10, process16 ? 16 : 10);
 	LOGD ("10 bit texture: %s", extTex10 ? "supported" : "not supported");
 	LOGD ("16 bit texture: %s", extTex16 ? "supported" : "not supported");
 	LOGD ("16 bit processing: %s", extFrag16 ? "supported" : "not supported");
-	LOGD ("write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
-*/
+	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 	return true;
 }
 
@@ -585,14 +592,14 @@ void videoRenderer::render () {
 
 			to.timecode = from.timecode;
 
-			glActiveTexture (GL_TEXTURE0 + 0);
-			glBindTexture(GL_TEXTURE_2D, from.plane[0]);
+			glActiveTexture (GL_TEXTURE0);
+			glBindTexture (GL_TEXTURE_2D, from.plane[0]);
 
-			glActiveTexture (GL_TEXTURE0 + 1);
+			glActiveTexture (GL_TEXTURE1);
 			glBindTexture(GL_TEXTURE_2D, from.plane[1]);
 
-			glActiveTexture (GL_TEXTURE0 + 2);
-			glBindTexture(GL_TEXTURE_2D, from.plane[2]);
+			glActiveTexture (GL_TEXTURE2);
+			glBindTexture (GL_TEXTURE_2D, from.plane[2]);
 
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);

@@ -7,8 +7,8 @@ videoDecoder::videoDecoder () {
 	sarHeight = 1;
 	fpsNumerator = 30;
 	fpsDenominator = 1;
-	range = 0;
-	matrix = 0;
+	range = 1;
+	matrix = 1;
 	//fourCC = 0x41424752; // RGBA
 	fourCC = 0x50343434; // P408
 
@@ -20,6 +20,14 @@ videoDecoder::videoDecoder () {
 	dataG = new unsigned char[width * dheight];
 	dataB = new unsigned char[width * dheight];
 	for (int y = 0; y < dheight; ++y)
+		for (int x = 0; x < width; ++x) {
+			dataR[width * y + x] = 128;
+			dataG[width * y + x] = x / 10 * 10;
+			dataB[width * y + x] = y / 10 * 10;
+		}
+
+/*
+	for (int y = 0; y < dheight; ++y)
 		for (int x = 0; x < width; ++x)
 			if (y % 255 > 40) {
 				dataR[width * y + x] = abs (x % 510 - 255);
@@ -30,6 +38,7 @@ videoDecoder::videoDecoder () {
 				dataG[width * y + x] = 0;
 				dataB[width * y + x] = 0;
 			}
+*/
 /*
  	// RGBA
 	data = new unsigned int[width * dheight];
@@ -48,7 +57,7 @@ videoDecoder::~videoDecoder () {
 }
 
 int videoDecoder::getNextVideoframe (char* buf, int size) {
-	int shift = 510 - (decoderCount * 10) % 510;
+	int shift = 0;//510 - (decoderCount * 10) % 510;
 	memcpy (buf + width * height * 0, dataR + width * shift, width * height);
 	memcpy (buf + width * height * 1, dataG + width * shift, width * height);
 	memcpy (buf + width * height * 2, dataB + width * shift, width * height);

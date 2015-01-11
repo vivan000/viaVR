@@ -445,10 +445,44 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
+	frameGPUo t (info);
 	frameGPUo to (info);
 
 	const GLuint vertexCoordLoc = 0;
 	const GLuint textureCoordLoc = 1;
+
+	// calculate yub -> rgb matrix
+	double rangeY, rangeC, luma0, Kb, Kr;
+	switch (info->range) {
+		case pRange::TV:
+			rangeY = 255.0 / 219.0;
+			rangeC = 255.0 / 112.0;
+			luma0 = 16.0;
+			break;
+		case pRange::PC:
+			rangeY = 1.0;
+			rangeC = 255.0 / 128.0;
+			luma0 = 0.0;
+	}
+	switch (info->matrix) {
+		case pMatrix::BT601:
+			Kb = 0.114;
+			Kr = 0.299;
+			break;
+		case pMatrix::BT709:
+			Kb = 0.0722;
+			Kr = 0.2126;
+			break;
+	}
+	const GLfloat conversion[9] = {
+		(float) (rangeY), (float) (0.0), (float) (rangeC * (1.0 - Kr)),
+		(float) (rangeY), (float) (-rangeC * (1.0 - Kb) * Kb / (1.0 - Kb - Kr)), (float) (-rangeC * (1.0 - Kr) * Kr / (1.0 - Kb - Kr)),
+		(float) (rangeY), (float) (rangeC * (1.0 - Kb)), (float) (0.0)};
+	const GLfloat offset[3] = {
+		(float) ((-luma0 * rangeY - 128.0 * rangeC * (1.0 - Kr)) / 255.0),
+		(float) ((-luma0 * rangeY + rangeC * (1.0 - Kb) * Kb / (1.0 - Kb - Kr) * 128.0 + rangeC * (1.0 - Kr) * Kr / (1.0 - Kb - Kr) * 128.0) / 255.0),
+		(float) ((-luma0 * rangeY - 128.0 * rangeC * (1.0 - Kb)) / 255.0)};
+
 
 	// create FBO
 	GLuint framebuffer;
@@ -457,12 +491,19 @@ void videoRenderer::render () {
 	glViewport (0, 0, info->width, info->height);
 
 	// load shaders
-	const char* renderFP =
-		#include "shaders/upload3ToInternal.h"
-	shader renderShader (displayVP, renderFP, "highp");
-	renderShader.addAtrib ("vertexCoord", vertexCoordLoc);
-	renderShader.addAtrib ("textureCoord", textureCoordLoc);
-	GLuint renderSP = renderShader.loadProgram ();
+	const char* renderToInternalFP =
+		#include "shaders/planar08ToInternal.h"
+	shader renderToInternalShader (displayVP, renderToInternalFP, "highp");
+	renderToInternalShader.addAtrib ("vertexCoord", vertexCoordLoc);
+	renderToInternalShader.addAtrib ("textureCoord", textureCoordLoc);
+	GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
+
+	const char* renderYuvToRgbFP =
+		#include "shaders/yuvToRgb.h"
+	shader renderYuvToRgbShader (displayVP, renderYuvToRgbFP, "highp");
+	renderYuvToRgbShader.addAtrib ("vertexCoord", vertexCoordLoc);
+	renderYuvToRgbShader.addAtrib ("textureCoord", textureCoordLoc);
+	GLuint renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
 
 	// load coordinates
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
@@ -473,15 +514,23 @@ void videoRenderer::render () {
 	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);
 
-	GLint renderYLoc = glGetUniformLocation (renderSP, "Y");
-	GLint renderCbLoc = glGetUniformLocation (renderSP, "Cb");
-	GLint renderCrLoc = glGetUniformLocation (renderSP, "Cr");
+	// set uniforms
+	GLint renderToInternalYLoc = glGetUniformLocation (renderToInternalSP, "Y");
+	GLint renderToInternalCbLoc = glGetUniformLocation (renderToInternalSP, "Cb");
+	GLint renderToInternalCrLoc = glGetUniformLocation (renderToInternalSP, "Cr");
+	glUseProgram (renderToInternalSP);
+	glUniform1i (renderToInternalYLoc, 0);
+	glUniform1i (renderToInternalCbLoc, 1);
+	glUniform1i (renderToInternalCrLoc, 2);
 
-	glUseProgram (renderSP);
 
-	glUniform1i (renderYLoc, 0);
-	glUniform1i (renderCbLoc, 1);
-	glUniform1i (renderCrLoc, 2);
+	GLint renderYuvToRgbTextLoc = glGetUniformLocation (renderYuvToRgbSP, "texture");
+	GLint renderYuvToRgbConvLoc = glGetUniformLocation (renderYuvToRgbSP, "conversion");
+	GLint renderYuvToRgbOfstLoc = glGetUniformLocation (renderYuvToRgbSP, "offset");
+	glUseProgram (renderYuvToRgbSP);
+	glUniform1i (renderYuvToRgbTextLoc, 0);
+	glUniformMatrix3fv (renderYuvToRgbConvLoc, 1, GL_FALSE, conversion);
+	glUniform3fv (renderYuvToRgbOfstLoc, 1, offset);
 
 	rendering = true;
 	while (rendering) {
@@ -499,7 +548,14 @@ void videoRenderer::render () {
 			glActiveTexture (GL_TEXTURE2);
 			glBindTexture (GL_TEXTURE_2D, from.plane[2]);
 
+			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.plane, 0);
+			glUseProgram (renderToInternalSP);
+			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
+			glActiveTexture (GL_TEXTURE0);
+			glBindTexture (GL_TEXTURE_2D, t.plane);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
+			glUseProgram (renderYuvToRgbSP);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 			glFlush ();

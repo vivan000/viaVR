@@ -350,7 +350,7 @@ void videoRenderer::drawFrame () {
 }
 
 void videoRenderer::presentFrame (frameGPUo* f) {
-	LOGD ("frame %i timecode %i now %i repeat %i", frameNumber, f->timecode, tcNow (), repeat);
+	// LOGD ("frame %i timecode %i now %i repeat %i", frameNumber, f->timecode, tcNow (), repeat);
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
@@ -445,7 +445,7 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
-	frameGPUo t (info);
+	frameGPUi t (info->width, info->height, true);
 	frameGPUo to (info);
 
 	const GLuint vertexCoordLoc = 0;
@@ -482,7 +482,6 @@ void videoRenderer::render () {
 		(float) ((-luma0 * rangeY - 128.0 * rangeC * (1.0 - Kr)) / 255.0),
 		(float) ((-luma0 * rangeY + rangeC * (1.0 - Kb) * Kb / (1.0 - Kb - Kr) * 128.0 + rangeC * (1.0 - Kr) * Kr / (1.0 - Kb - Kr) * 128.0) / 255.0),
 		(float) ((-luma0 * rangeY - 128.0 * rangeC * (1.0 - Kb)) / 255.0)};
-
 
 	// create FBO
 	GLuint framebuffer;
@@ -523,12 +522,11 @@ void videoRenderer::render () {
 	glUniform1i (renderToInternalCbLoc, 1);
 	glUniform1i (renderToInternalCrLoc, 2);
 
-
 	GLint renderYuvToRgbTextLoc = glGetUniformLocation (renderYuvToRgbSP, "texture");
 	GLint renderYuvToRgbConvLoc = glGetUniformLocation (renderYuvToRgbSP, "conversion");
 	GLint renderYuvToRgbOfstLoc = glGetUniformLocation (renderYuvToRgbSP, "offset");
 	glUseProgram (renderYuvToRgbSP);
-	glUniform1i (renderYuvToRgbTextLoc, 0);
+	glUniform1i (renderYuvToRgbTextLoc, 3);
 	glUniformMatrix3fv (renderYuvToRgbConvLoc, 1, GL_FALSE, conversion);
 	glUniform3fv (renderYuvToRgbOfstLoc, 1, offset);
 
@@ -543,7 +541,7 @@ void videoRenderer::render () {
 			glBindTexture (GL_TEXTURE_2D, from.plane[0]);
 
 			glActiveTexture (GL_TEXTURE1);
-			glBindTexture(GL_TEXTURE_2D, from.plane[1]);
+			glBindTexture (GL_TEXTURE_2D, from.plane[1]);
 
 			glActiveTexture (GL_TEXTURE2);
 			glBindTexture (GL_TEXTURE_2D, from.plane[2]);
@@ -552,7 +550,7 @@ void videoRenderer::render () {
 			glUseProgram (renderToInternalSP);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
-			glActiveTexture (GL_TEXTURE0);
+			glActiveTexture (GL_TEXTURE3);
 			glBindTexture (GL_TEXTURE_2D, t.plane);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 			glUseProgram (renderYuvToRgbSP);
@@ -569,4 +567,49 @@ void videoRenderer::render () {
 	}
 
 	glDeleteFramebuffers (1, &framebuffer);
+}
+
+void videoRenderer::getGlError () {
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR)
+		switch (err) {
+			case GL_INVALID_ENUM:
+				LOGE ("OpenGL error: GL_INVALID_ENUM");
+				break;
+			case GL_INVALID_VALUE:
+				LOGE ("OpenGL error: GL_INVALID_VALUE");
+				break;
+			case GL_INVALID_OPERATION:
+				LOGE ("OpenGL error: GL_INVALID_OPERATION");
+				break;
+			case GL_INVALID_FRAMEBUFFER_OPERATION:
+				LOGE ("OpenGL error: GL_INVALID_FRAMEBUFFER_OPERATION");
+				break;
+			case GL_OUT_OF_MEMORY:
+				LOGE ("OpenGL error: GL_OUT_OF_MEMORY");
+				break;
+		};
+}
+
+void videoRenderer::getFbStatus () {
+	GLenum err = glCheckFramebufferStatus (GL_FRAMEBUFFER);
+	switch (err) {
+		case GL_FRAMEBUFFER_COMPLETE:
+			LOGE ("Framebuffer: GL_FRAMEBUFFER_COMPLETE");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+			LOGE ("Framebuffer: GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+			LOGE ("Framebuffer: GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS");
+			break;
+		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+			LOGE ("Framebuffer: GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT");
+			break;
+		case GL_FRAMEBUFFER_UNSUPPORTED:
+			LOGE ("Framebuffer: GL_FRAMEBUFFER_UNSUPPORTED");
+			break;
+		default:
+			LOGE ("Framebuffer: %i", err);
+	};
 }

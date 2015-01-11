@@ -41,6 +41,9 @@ private:
 	void decode ();
 	void render ();
 
+	void getGlError ();
+	void getFbStatus ();
+
 	// video config
 	videoDecoder* video;
 	videoInfo* info;

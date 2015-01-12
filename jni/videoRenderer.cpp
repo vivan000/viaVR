@@ -126,10 +126,6 @@ bool videoRenderer::init () {
 
 	// load shaders
 	shader displayShader (displayVP, displayFP);
-	const GLuint vertexCoordLoc = 0;
-	const GLuint textureCoordLoc = 1;
-	displayShader.addAtrib ("vertexCoord", vertexCoordLoc);
-	displayShader.addAtrib ("textureCoord", textureCoordLoc);
 	GLuint displaySP = displayShader.loadProgram ();
 	if (!displaySP)
 		return false;
@@ -137,11 +133,14 @@ bool videoRenderer::init () {
 
 	// load coordinates
 	glGenBuffers (2, vboIds);
+
+	const GLuint vertexCoordLoc = 0;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexPositions), VertexPositions, GL_STATIC_DRAW);
 	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (vertexCoordLoc);
 
+	const GLuint textureCoordLoc = 1;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
 	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -448,9 +447,6 @@ void videoRenderer::render () {
 	frameGPUi t (info->width, info->height, true);
 	frameGPUo to (info);
 
-	const GLuint vertexCoordLoc = 0;
-	const GLuint textureCoordLoc = 1;
-
 	// calculate yub -> rgb matrix
 	double rangeY, rangeC, luma0, Kb, Kr;
 	switch (info->range) {
@@ -493,22 +489,20 @@ void videoRenderer::render () {
 	const char* renderToInternalFP =
 		#include "shaders/planar08ToInternal.h"
 	shader renderToInternalShader (displayVP, renderToInternalFP, "highp");
-	renderToInternalShader.addAtrib ("vertexCoord", vertexCoordLoc);
-	renderToInternalShader.addAtrib ("textureCoord", textureCoordLoc);
 	GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
 
 	const char* renderYuvToRgbFP =
 		#include "shaders/yuvToRgb.h"
 	shader renderYuvToRgbShader (displayVP, renderYuvToRgbFP, "highp");
-	renderYuvToRgbShader.addAtrib ("vertexCoord", vertexCoordLoc);
-	renderYuvToRgbShader.addAtrib ("textureCoord", textureCoordLoc);
 	GLuint renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
 
 	// load coordinates
+	const GLuint vertexCoordLoc = 0;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
 	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (vertexCoordLoc);
 
+	const GLuint textureCoordLoc = 1;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
 	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);

@@ -14,6 +14,13 @@ shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource
 
 	vertexShader = loadShader (GL_VERTEX_SHADER, vertexShaderSource);
 	fragmentShader = loadShader (GL_FRAGMENT_SHADER, fragmentShaderSourceProcessed);
+	delete[] fragmentShaderSourceProcessed;
+}
+
+shader::~shader () {
+}
+
+GLuint shader::loadProgram () {
 	programObject = glCreateProgram ();
 
 	if (programObject == 0) {
@@ -23,22 +30,6 @@ shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource
 	if (programObject && vertexShader && fragmentShader) {
 		glAttachShader (programObject, vertexShader);
 		glAttachShader (programObject, fragmentShader);
-	}
-
-	delete[] fragmentShaderSourceProcessed;
-}
-
-shader::~shader () {
-}
-
-void shader::addAtrib (const char* attribName, const GLuint attribLoaction) {
-	if (programObject && vertexShader && fragmentShader) {
-		glBindAttribLocation (programObject, attribLoaction, attribName);
-	}
-}
-
-GLuint shader::loadProgram () {
-	if (programObject && vertexShader && fragmentShader) {
 		glLinkProgram (programObject);
 
 		GLint linked;

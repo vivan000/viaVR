@@ -8,7 +8,7 @@ Advanced video renderer for Android.
 - 10/16-bit processing.
 - proper color conversion (BT.709 support, correct chroma location, etc.).
 - native code (C++).
-- full GPU acceleration (OpenGL ES 2.0).
+- full GPU acceleration (OpenGL ES 3.0).
 
 ### 1.0 goals:
 - high quality scaling.
@@ -19,8 +19,5 @@ Advanced video renderer for Android.
 - settings.
 
 ### System requirements:
-- OpenGL ES 2.0.
-- **GL_OES_texture_half_float** and **GL_EXT_color_buffer_half_float** for 10-bit precision.
-- **GL_OES_texture_float**, **GL_EXT_color_buffer_float** and **GL_OES_fragment_precision_high** for 16-bit precision.
-- (or OpenGL ES 3.0 for both).
+- OpenGL ES 3.0.
 - a lot of free RAM.

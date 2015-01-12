@@ -1,5 +1,4 @@
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
 
 #define FOURCC(a, b, c, d) ((a) | (b << 8) | (c << 16) | (d << 24))
 

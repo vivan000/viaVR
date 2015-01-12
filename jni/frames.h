@@ -32,7 +32,7 @@ public:
 	GLuint plane;
 	int timecode;
 
-	frameGPUi (int w, int h, bool half);
+	frameGPUi (int w, int h, bool full);
 	~frameGPUi ();
 };
 

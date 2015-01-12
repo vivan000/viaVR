@@ -1,5 +1,4 @@
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+#include <GLES3/gl3.h>
 #include <EGL/egl.h>
 #include <thread>
 #include "frames.h"

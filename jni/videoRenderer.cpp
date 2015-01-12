@@ -461,7 +461,7 @@ void videoRenderer::render () {
 			break;
 		case pRange::PC:
 			rangeY = 1.0;
-			rangeC = 255.0 / 128.0;
+			rangeC = 2.0;
 			luma0 = 0.0;
 	}
 	switch (info->matrix) {

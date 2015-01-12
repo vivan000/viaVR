@@ -1,8 +1,10 @@
+"#version 300 es														\n"
 "precision lowp float;													\n"
 "																		\n"
-"uniform   sampler2D texture;											\n"
-"varying   vec2      coord;												\n"
+"uniform	sampler2D	video;											\n"
+"in			vec2		coord;											\n"
+"out		vec4		outColor;										\n"
 "																		\n"
 "void main () {															\n"
-"    gl_FragColor = texture2D (texture, coord);							\n"
+"    outColor = texture (video, coord);									\n"
 "}																		\n";

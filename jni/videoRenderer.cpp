@@ -148,7 +148,7 @@ bool videoRenderer::init () {
 	glEnableVertexAttribArray (textureCoordLoc);
 
 	// set texture unit
-	GLint displayTLoc = glGetUniformLocation (displaySP, "texture");
+	GLint displayTLoc = glGetUniformLocation (displaySP, "video");
 	glUseProgram (displaySP);
 	glUniform1i (displayTLoc, 0);
 
@@ -294,7 +294,7 @@ void videoRenderer::genContexts () {
 	EGLConfig config;
 	EGLint numConfigs;
 	EGLint attribListCfg[] = {EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_NONE};
-	EGLint attribListCtx[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+	EGLint attribListCtx[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
 	EGLint attribListSrf[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
 	eglChooseConfig (display, attribListCfg, &config, 1, &numConfigs);
 	uploadContext = eglCreateContext (display, config, mainContext, attribListCtx);
@@ -522,7 +522,7 @@ void videoRenderer::render () {
 	glUniform1i (renderToInternalCbLoc, 1);
 	glUniform1i (renderToInternalCrLoc, 2);
 
-	GLint renderYuvToRgbTextLoc = glGetUniformLocation (renderYuvToRgbSP, "texture");
+	GLint renderYuvToRgbTextLoc = glGetUniformLocation (renderYuvToRgbSP, "video");
 	GLint renderYuvToRgbConvLoc = glGetUniformLocation (renderYuvToRgbSP, "conversion");
 	GLint renderYuvToRgbOfstLoc = glGetUniformLocation (renderYuvToRgbSP, "offset");
 	glUseProgram (renderYuvToRgbSP);

@@ -58,7 +58,9 @@ public:
 	bool halfWidth, halfHeight;
 
 	int planes;
+	GLenum internalLumaFormat, internalChromaFormat;
 	GLenum lumaFormat, chromaFormat;
+	GLenum lumaType, chromaType;
 
 	int chromaWidth, chromaHeight;
 	int offset1, offset2;

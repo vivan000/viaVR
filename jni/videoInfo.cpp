@@ -199,8 +199,12 @@ videoInfo::videoInfo (int videoWidth, int videoHeight, int videoFourCC, int vide
 		case pFormat::P008:
 		case pFormat::P208:
 		case pFormat::P408:
-			lumaFormat = GL_LUMINANCE;
-			chromaFormat = GL_LUMINANCE;
+			internalLumaFormat = GL_R8;
+			internalChromaFormat = GL_R8;
+			lumaFormat = GL_RED;
+			chromaFormat = GL_RED;
+			lumaType = GL_UNSIGNED_BYTE;
+			chromaType = GL_UNSIGNED_BYTE;
 			break;
 
 		case pFormat::P010:
@@ -209,18 +213,28 @@ videoInfo::videoInfo (int videoWidth, int videoHeight, int videoFourCC, int vide
 		case pFormat::P016:
 		case pFormat::P216:
 		case pFormat::P416:
-			lumaFormat = GL_LUMINANCE_ALPHA;
-			chromaFormat = GL_LUMINANCE_ALPHA;
+			internalLumaFormat = GL_R16UI;
+			internalChromaFormat = GL_R16UI;
+			lumaFormat = GL_RED_INTEGER;
+			chromaFormat = GL_RED_INTEGER;
+			lumaType = GL_UNSIGNED_SHORT;
+			chromaType = GL_UNSIGNED_SHORT;
 			break;
 
 		case pFormat::NV12:
 		case pFormat::NV21:
-			lumaFormat = GL_LUMINANCE;
-			chromaFormat = GL_LUMINANCE_ALPHA;
+			internalLumaFormat = GL_R8;
+			internalChromaFormat = GL_RG8;
+			lumaFormat = GL_RED;
+			chromaFormat = GL_RG;
+			lumaType = GL_UNSIGNED_BYTE;
+			chromaType = GL_UNSIGNED_BYTE;
 			break;
 
 		case pFormat::RGBA:
+			internalLumaFormat = GL_RGBA8;
 			lumaFormat = GL_RGBA;
+			lumaType = GL_UNSIGNED_BYTE;
 			break;
 
 		default:

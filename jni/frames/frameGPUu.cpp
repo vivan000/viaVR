@@ -10,11 +10,11 @@ frameGPUu::frameGPUu (videoInfo* f) {
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		if (!i)
-			glTexImage2D (GL_TEXTURE_2D, 0,	f->lumaFormat, f->width, f->height,
-				0, f->lumaFormat, GL_UNSIGNED_BYTE, NULL);
+			glTexImage2D (GL_TEXTURE_2D, 0,	f->internalLumaFormat, f->width, f->height,
+				0, f->lumaFormat, f->lumaType, NULL);
 		else
-			glTexImage2D (GL_TEXTURE_2D, 0,	f->chromaFormat, f->chromaWidth, f->chromaHeight,
-				0, f->chromaFormat, GL_UNSIGNED_BYTE, NULL);
+			glTexImage2D (GL_TEXTURE_2D, 0,	f->internalChromaFormat, f->chromaWidth, f->chromaHeight,
+				0, f->chromaFormat, f->chromaType, NULL);
 	}
 
 	timecode = 0;

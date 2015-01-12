@@ -415,18 +415,18 @@ void videoRenderer::upload () {
 
 			glBindTexture (GL_TEXTURE_2D, to.plane[0]);
 			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->width, info->height,
-				info->lumaFormat, GL_UNSIGNED_BYTE, (GLvoid*) from.plane);
+				info->lumaFormat, info->lumaType, (GLvoid*) from.plane);
 
 			if (info->planes > 1) {
 				glBindTexture (GL_TEXTURE_2D, to.plane[1]);
 				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
-					info->chromaFormat, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + info->offset1));
+					info->chromaFormat, info->chromaType, (GLvoid*) (from.plane + info->offset1));
 			}
 
 			if (info->planes > 2) {
 				glBindTexture (GL_TEXTURE_2D, to.plane[2]);
 				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
-					info->chromaFormat, GL_UNSIGNED_BYTE, (GLvoid*) (from.plane + info->offset2));
+					info->chromaFormat, info->chromaType, (GLvoid*) (from.plane + info->offset2));
 			}
 
 			glFlush ();

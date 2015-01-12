@@ -29,6 +29,7 @@ private:
 	int range, matrix, fourCC;
 
 	int decoderCount;
+	int mode, bpp;
 	unsigned char* dataR;
 	unsigned char* dataG;
 	unsigned char* dataB;

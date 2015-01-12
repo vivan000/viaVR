@@ -294,7 +294,7 @@ void videoRenderer::genContexts () {
 	EGLConfig config;
 	EGLint numConfigs;
 	EGLint attribListCfg[] = {EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_NONE};
-	EGLint attribListCtx[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+	EGLint attribListCtx[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
 	EGLint attribListSrf[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
 	eglChooseConfig (display, attribListCfg, &config, 1, &numConfigs);
 	uploadContext = eglCreateContext (display, config, mainContext, attribListCtx);
@@ -445,7 +445,7 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
-	frameGPUi t (info->width, info->height);
+	frameGPUi t (info->width, info->height, true);
 	frameGPUo to (info);
 
 	const GLuint vertexCoordLoc = 0;

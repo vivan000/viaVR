@@ -26,13 +26,13 @@ private:
 	int numberOfPlanes;
 };
 
-// internal frame, 16-bit RGB
+// internal frame, RGB (half-)float
 class frameGPUi {
 public:
 	GLuint plane;
 	int timecode;
 
-	frameGPUi (int w, int h);
+	frameGPUi (int w, int h, bool full);
 	~frameGPUi ();
 };
 

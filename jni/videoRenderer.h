@@ -77,9 +77,6 @@ private:
 	int surfaceWidth, surfaceHeight;
 	int displayRefreshRate = 60;
 
-	int targetWidth, targetHeight;
-	int targetX, targetY;
-
 	frameGPUo* displayCurr;
 	int repeat, repeatLim;
 	bool newFrame;

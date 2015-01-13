@@ -64,4 +64,7 @@ public:
 
 	int chromaWidth, chromaHeight;
 	int offset1, offset2;
+
+	int targetX, targetY;
+	int targetWidth, targetHeight;
 };

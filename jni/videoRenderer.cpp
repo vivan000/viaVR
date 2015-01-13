@@ -246,44 +246,44 @@ void videoRenderer::setAspect () {
 	switch (mode) {
 		// stretch
 		case 0:
-			targetX = 0;
-			targetY = 0;
-			targetWidth = info->width;
-			targetHeight = info->height;
+			info->targetX = 0;
+			info->targetY = 0;
+			info->targetWidth = info->width;
+			info->targetHeight = info->height;
 			break;
 
 		// touch from inside
 		case 1:
 			if ((long long) surfaceWidth * info->height * videoSarHeight < (long long) info->width * videoSarWidth * surfaceHeight) {
-				targetX = 0;
-				targetWidth = surfaceWidth;
-				targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
-				targetY = (surfaceHeight - targetHeight) / 2;
+				info->targetX = 0;
+				info->targetWidth = surfaceWidth;
+				info->targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
+				info->targetY = (surfaceHeight - info->targetHeight) / 2;
 			} else {
-				targetY = 0;
-				targetHeight = surfaceHeight;
-				targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
-				targetX = (surfaceWidth - targetWidth) / 2;
+				info->targetY = 0;
+				info->targetHeight = surfaceHeight;
+				info->targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
+				info->targetX = (surfaceWidth - info->targetWidth) / 2;
 			}
 			break;
 
 		// touch from outside
 		case 2:
 			if ((long long) surfaceWidth * info->height * videoSarHeight > (long long) info->width * videoSarWidth * surfaceHeight) {
-				targetX = 0;
-				targetWidth = surfaceWidth;
-				targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
-				targetY = (surfaceHeight - targetHeight) / 2;
+				info->targetX = 0;
+				info->targetWidth = surfaceWidth;
+				info->targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
+				info->targetY = (surfaceHeight - info->targetHeight) / 2;
 			} else {
-				targetY = 0;
-				targetHeight = surfaceHeight;
-				targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
-				targetX = (surfaceWidth - targetWidth) / 2;
+				info->targetY = 0;
+				info->targetHeight = surfaceHeight;
+				info->targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
+				info->targetX = (surfaceWidth - info->targetWidth) / 2;
 			}
 			break;
 	}
 
-	glViewport (targetX, targetY, targetWidth, targetHeight);
+	glViewport (info->targetX, info->targetY, info->targetWidth, info->targetHeight);
 }
 
 void videoRenderer::genContexts () {
@@ -444,7 +444,7 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
-	frameGPUi t (info->width, info->height, true);
+	frameGPUi t (info->width, info->height, false);
 	frameGPUo to (info);
 
 	// calculate yub -> rgb matrix
@@ -540,10 +540,12 @@ void videoRenderer::render () {
 			glActiveTexture (GL_TEXTURE2);
 			glBindTexture (GL_TEXTURE_2D, from.plane[2]);
 
+			glViewport (0, 0, info->width, info->height);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.plane, 0);
 			glUseProgram (renderToInternalSP);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
+			glViewport (0, 0, info->targetWidth, info->targetHeight);
 			glActiveTexture (GL_TEXTURE3);
 			glBindTexture (GL_TEXTURE_2D, t.plane);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);

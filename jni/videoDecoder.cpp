@@ -1,4 +1,6 @@
 #include "videoDecoder.h"
+#include "videoInfo.h"
+#include "log.h"
 
 videoDecoder::videoDecoder () {
 	width = 720;
@@ -9,27 +11,32 @@ videoDecoder::videoDecoder () {
 	fpsDenominator = 1;
 	range = 2;
 	matrix = 1;
+	decoderCount = 0;
 
-	mode = 3;
+	int mode = 5;
 
 	switch (mode) {
 		case 1:
-			fourCC = 0x41424752; // RGBA
+			fourCC = (int) pFormat::RGBA;
 			bpp = 4;
 			break;
 		case 2:
-			fourCC = 0x50343434; // P408
+			fourCC = (int) pFormat::P408;
 			bpp = 1;
 			break;
 		case 3:
-			fourCC = 0x10003359; // P416
+			fourCC = (int) pFormat::P416;
+			bpp = 2;
+			break;
+		case 5:
+			fourCC = (int) pFormat::P010;
 			bpp = 2;
 			break;
 	}
 
-	decoderCount = 0;
-	int dheight = height + 510;
+	videoInfo* info = new videoInfo (width, height, fourCC, range, matrix);
 
+	int dheight = height + 510;
 	switch (mode) {
 		case 1:
 			// RGBA
@@ -42,19 +49,19 @@ videoDecoder::videoDecoder () {
 						((unsigned int*) dataR)[width * y + x] = 0;
 			break;
 		case 2:
-			// planar RGB (P408)
-			dataR = new unsigned char[width * dheight];
-			dataG = new unsigned char[width * dheight];
-			dataB = new unsigned char[width * dheight];
-			for (int y = 0; y < dheight; ++y)
-				for (int x = 0; x < width; ++x) {
+			// planar 8-bit 4:4:4 (P408)
+			dataR = new unsigned char[info->width * info->height];
+			dataG = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			for (int y = 0; y < info->height; ++y)
+				for (int x = 0; x < info->width; ++x) {
 					dataR[width * y + x] = 128;
-					dataG[width * y + x] = x * 255 / (width - 1);
-					dataB[width * y + x] = 255 - (y * 255 / (height - 1));
+					dataG[width * y + x] = x * 255 / (info->width - 1);
+					dataB[width * y + x] = 255 - (y * 255 / (info->height - 1));
 				}
 			break;
 		case 3:
-			// planar RGB (P416)
+			// planar 16-bit 4:4:4 (P416)
 			dataR = new unsigned char[width * dheight * bpp];
 			dataG = new unsigned char[width * dheight * bpp];
 			dataB = new unsigned char[width * dheight * bpp];
@@ -65,22 +72,42 @@ videoDecoder::videoDecoder () {
 					((unsigned short*) dataB)[width * y + x] = 65535 - (y * 65535 / (height - 1));
 				}
 			break;
+		case 5:
+			// planar 10-bit 4:2:0 (P010)
+			dataR = new unsigned char[info->width * info->height * bpp];
+			dataG = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			for (int y = 0; y < info->height; ++y)
+				for (int x = 0; x < info->width; ++x) {
+					bool line = ((x + y) % 10 == 0);
+					((unsigned short*) dataR)[info->width * y + x] = line ? 82*256 : 16*256;
+				}
+			for (int y = 0; y < info->chromaHeight; ++y)
+				for (int x = 0; x < info->chromaWidth; ++x) {
+					bool line = ((x * 2 + y * 2) % 10 == 0);
+					((unsigned short*) dataG)[info->chromaWidth * y + x] = line ? 90*256 : 128*256;
+					((unsigned short*) dataB)[info->chromaWidth * y + x] = line ? 240*256 : 128*256;
+				}
+			break;
 	}
+	infoptr = (void*) info;
 }
 
 videoDecoder::~videoDecoder () {
 	delete[] dataR;
 	delete[] dataG;
 	delete[] dataB;
+	delete (videoInfo*)infoptr;
 }
 
 int videoDecoder::getNextVideoframe (char* buf, int size) {
 	int shift = 0;//510 - (decoderCount * 10) % 510;
+	videoInfo* info = (videoInfo*) infoptr;
 
-	memcpy (buf + width * height * bpp * 0, dataR + width * bpp * shift, width * height * bpp);
-	if (bpp != 4) {
-		memcpy (buf + width * height * bpp * 1, dataG + width * bpp * shift, width * height * bpp);
-		memcpy (buf + width * height * bpp * 2, dataB + width * bpp * shift, width * height * bpp);
+	memcpy (buf, dataR, info->width * info->height * bpp);
+	if (info->planes == 3) {
+		memcpy (buf + info->offset1, dataG, info->chromaWidth * info->chromaHeight * bpp);
+		memcpy (buf + info->offset2, dataB, info->chromaWidth * info->chromaHeight * bpp);
 	}
 
 	return decoderCount++ * 1000 * fpsDenominator / fpsNumerator;

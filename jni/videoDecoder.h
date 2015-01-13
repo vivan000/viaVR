@@ -23,13 +23,16 @@ public:
 	int getCurrentTimecode ();
 
 private:
+	void* infoptr;
+
 	int width, height;
 	int sarWidth, sarHeight;
 	int fpsNumerator, fpsDenominator;
 	int range, matrix, fourCC;
+	int bpp;
 
 	int decoderCount;
-	int mode, bpp;
+
 	unsigned char* dataR;
 	unsigned char* dataG;
 	unsigned char* dataB;

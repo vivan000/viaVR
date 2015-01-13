@@ -67,4 +67,10 @@ public:
 
 	int targetX, targetY;
 	int targetWidth, targetHeight;
+
+	GLfloat colorConversion[9];
+	GLfloat colorOffset[3];
+
+private:
+	double rangeY, rangeC, luma0, Kb, Kr;
 };

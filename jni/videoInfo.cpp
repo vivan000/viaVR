@@ -274,6 +274,46 @@ videoInfo::videoInfo (int videoWidth, int videoHeight, int videoFourCC, int vide
 			init = false;
 			return;
 	}
+
+	// calculate yub -> rgb matrix
+	switch (range) {
+		case pRange::TV:
+			rangeY = 255.0 / 219.0;
+			rangeC = 255.0 / 112.0;
+			luma0 = 16.0;
+			break;
+		case pRange::PC:
+			rangeY = 1.0;
+			rangeC = 2.0;
+			luma0 = 0.0;
+			break;
+	}
+
+	switch (matrix) {
+		case pMatrix::BT601:
+			Kb = 0.114;
+			Kr = 0.299;
+			break;
+		case pMatrix::BT709:
+			Kb = 0.0722;
+			Kr = 0.2126;
+			break;
+	}
+
+	colorConversion[0] = (float) (rangeY);
+	colorConversion[1] = (float) (0.0);
+	colorConversion[2] = (float) (rangeC * (1.0 - Kr));
+	colorConversion[3] = (float) (rangeY);
+	colorConversion[4] = (float) (-rangeC * (1.0 - Kb) * Kb / (1.0 - Kb - Kr));
+	colorConversion[5] = (float) (-rangeC * (1.0 - Kr) * Kr / (1.0 - Kb - Kr));
+	colorConversion[6] = (float) (rangeY);
+	colorConversion[7] = (float) (rangeC * (1.0 - Kb));
+	colorConversion[8] = (float) (0.0);
+
+	colorOffset[0] = (float) ((-luma0 * rangeY - 128.0 * rangeC * (1.0 - Kr)) / 255.0);
+	colorOffset[1] = (float) ((-luma0 * rangeY + rangeC * (1.0 - Kb) * Kb / (1.0 - Kb - Kr) * 128.0 + rangeC * (1.0 - Kr) * Kr / (1.0 - Kb - Kr) * 128.0) / 255.0);
+	colorOffset[2] = (float) ((-luma0 * rangeY - 128.0 * rangeC * (1.0 - Kb)) / 255.0);
+
 }
 
 videoInfo::~videoInfo () {

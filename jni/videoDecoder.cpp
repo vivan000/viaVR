@@ -10,12 +10,12 @@ videoDecoder::videoDecoder () {
 	range = 2;
 	matrix = 1;
 
-	mode = 2;
+	mode = 3;
 
 	switch (mode) {
 		case 1:
 			fourCC = 0x41424752; // RGBA
-			bpp = 1;
+			bpp = 4;
 			break;
 		case 2:
 			fourCC = 0x50343434; // P408
@@ -76,9 +76,13 @@ videoDecoder::~videoDecoder () {
 
 int videoDecoder::getNextVideoframe (char* buf, int size) {
 	int shift = 0;//510 - (decoderCount * 10) % 510;
+
 	memcpy (buf + width * height * bpp * 0, dataR + width * bpp * shift, width * height * bpp);
-	memcpy (buf + width * height * bpp * 1, dataG + width * bpp * shift, width * height * bpp);
-	memcpy (buf + width * height * bpp * 2, dataB + width * bpp * shift, width * height * bpp);
+	if (bpp != 4) {
+		memcpy (buf + width * height * bpp * 1, dataG + width * bpp * shift, width * height * bpp);
+		memcpy (buf + width * height * bpp * 2, dataB + width * bpp * shift, width * height * bpp);
+	}
+
 	return decoderCount++ * 1000 * fpsDenominator / fpsNumerator;
 }
 

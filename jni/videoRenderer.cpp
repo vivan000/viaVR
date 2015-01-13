@@ -444,7 +444,7 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
-	frameGPUi t (info->width, info->height, false);
+	frameGPUi t (info->width, info->height, 0);
 	frameGPUo to (info);
 
 	// calculate yub -> rgb matrix

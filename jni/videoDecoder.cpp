@@ -9,7 +9,7 @@ videoDecoder::videoDecoder () {
 	sarHeight = 1;
 	fpsNumerator = 30;
 	fpsDenominator = 1;
-	range = 2;
+	range = 1;
 	matrix = 1;
 	decoderCount = 0;
 
@@ -40,17 +40,14 @@ videoDecoder::videoDecoder () {
 	switch (mode) {
 		case 1:
 			// RGBA
-			dataR = new unsigned char[width * dheight * 4];
-			for (int y = 0; y < dheight; ++y)
+			dataR = new unsigned char[width * height * 4];
+			for (int y = 0; y < height; ++y)
 				for (int x = 0; x < width; ++x)
-					if (y % 255 > 40)
-						((unsigned int*) dataR)[width * y + x] = (abs (x % 510 - 255) << 0) | (abs (y % 510 - 255) << 8) | (0xFF << 16) | (0x00 << 24);
-					else
-						((unsigned int*) dataR)[width * y + x] = 0;
+					((unsigned int*) dataR)[width * y + x] = ((x % 256) << 0) | ((y % 256) << 8) | (0xFF << 16) | (0x00 << 24);
 			break;
 		case 2:
 			// planar 8-bit 4:4:4 (P408)
-			dataR = new unsigned char[info->width * info->height];
+			dataR = new unsigned char[info->width * info->height * bpp];
 			dataG = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
 			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
 			for (int y = 0; y < info->height; ++y)
@@ -62,10 +59,10 @@ videoDecoder::videoDecoder () {
 			break;
 		case 3:
 			// planar 16-bit 4:4:4 (P416)
-			dataR = new unsigned char[width * dheight * bpp];
-			dataG = new unsigned char[width * dheight * bpp];
-			dataB = new unsigned char[width * dheight * bpp];
-			for (int y = 0; y < dheight; ++y)
+			dataR = new unsigned char[info->width * info->height * bpp];
+			dataG = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			for (int y = 0; y < height; ++y)
 				for (int x = 0; x < width; ++x) {
 					((unsigned short*) dataR)[width * y + x] = 32768;
 					((unsigned short*) dataG)[width * y + x] = x * 65535 / (width - 1);
@@ -79,8 +76,12 @@ videoDecoder::videoDecoder () {
 			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
 			for (int y = 0; y < info->height; ++y)
 				for (int x = 0; x < info->width; ++x) {
-					bool line = ((x + y) % 10 == 0);
-					((unsigned short*) dataR)[info->width * y + x] = line ? 82*256 : 16*256;
+					int luma = 16*256;
+					if (((x + y) % 10) == 0)
+						luma = 82*256;
+					if ((((x + y) % 10) == 1) || (((x + y) % 10) == 9))
+						luma = 49*256;
+					((unsigned short*) dataR)[info->width * y + x] = luma;
 				}
 			for (int y = 0; y < info->chromaHeight; ++y)
 				for (int x = 0; x < info->chromaWidth; ++x) {

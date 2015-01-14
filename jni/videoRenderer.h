@@ -83,13 +83,5 @@ private:
 	int frameNumber, presentedFrames;
 	int hardLate, softLate, softEarly, hardEarly;
 
-	GLuint vboIds[2];
-
-	const static char* displayVP;
-	const static char* displayFP;
-	const static float VertexPositions[];
-	const static float VertexTexcoord[];
-
-	const static char* up420to422FP;
-	const static char* up422to444FP;
+	GLuint vboIds[3];
 };

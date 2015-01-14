@@ -8,30 +8,6 @@
 #include "videoRenderer.h"
 #include "shader.h"
 
-const float videoRenderer::VertexPositions[] = {
-	-1.0f,  1.0f, 0.0f, 1.0f,
-	 1.0f,  1.0f, 0.0f, 1.0f,
-	-1.0f, -1.0f, 0.0f, 1.0f,
-	 1.0f, -1.0f, 0.0f, 1.0f};
-
-const float videoRenderer::VertexTexcoord[] = {
-	0.0f, 0.0f,
-	1.0f, 0.0f,
-	0.0f, 1.0f,
-	1.0f, 1.0f};
-
-const char* videoRenderer::displayVP =
-	#include "shaders/displayVert.h"
-
-const char* videoRenderer::displayFP =
-	#include "shaders/displayFrag.h"
-
-const char* videoRenderer::up420to422FP =
-	#include "shaders/up420to422.h"
-
-const char* videoRenderer::up422to444FP =
-	#include "shaders/up422to444.h"
-
 videoRenderer::videoRenderer () {
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
 	glClear (GL_COLOR_BUFFER_BIT);
@@ -125,6 +101,11 @@ bool videoRenderer::init () {
 	LOGD ("Extensions: OK");
 
 	// load shaders
+	const char* displayVP =
+		#include "shaders/displayVert.h"
+	const char* displayFP =
+		#include "shaders/displayFrag.h"
+
 	shader displayShader (displayVP, displayFP);
 	GLuint displaySP = displayShader.loadProgram ();
 	if (!displaySP)
@@ -132,7 +113,25 @@ bool videoRenderer::init () {
 	LOGD ("Shaders: OK");
 
 	// load coordinates
-	glGenBuffers (2, vboIds);
+	const float VertexPositions[] = {
+		-1.0f, -1.0f, 0.0f, 1.0f,
+		-1.0f,  1.0f, 0.0f, 1.0f,
+		 1.0f, -1.0f, 0.0f, 1.0f,
+		 1.0f,  1.0f, 0.0f, 1.0f};
+
+	const float VertexTexcoord[] = {
+		0.0f, 0.0f,
+		0.0f, 1.0f,
+		1.0f, 0.0f,
+		1.0f, 1.0f};
+
+	const float VertexFlippedTexcoord[] = {
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 1.0f,
+		1.0f, 0.0f};
+
+	glGenBuffers (3, vboIds);
 
 	const GLuint vertexCoordLoc = 0;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
@@ -140,11 +139,14 @@ bool videoRenderer::init () {
 	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (vertexCoordLoc);
 
-	const GLuint textureCoordLoc = 1;
+	const GLuint textureFlippedCoordLoc = 1;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
+	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexFlippedTexcoord), VertexFlippedTexcoord, GL_STATIC_DRAW);
+	glVertexAttribPointer (textureFlippedCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (textureFlippedCoordLoc);
+
+	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
-	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (textureCoordLoc);
 
 	// set texture unit
 	GLint displayTLoc = glGetUniformLocation (displaySP, "video");
@@ -444,7 +446,9 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
-	frameGPUi t (info->width, info->height, 0);
+	frameGPUi t1 (info->width, info->height, 0);
+	frameGPUi t2 (info->width, info->height, 0);
+	frameGPUi t3 (info->width, info->height, 0);
 	frameGPUo to (info);
 
 	// create FBO
@@ -460,21 +464,25 @@ void videoRenderer::render () {
 	glEnableVertexAttribArray (vertexCoordLoc);
 
 	const GLuint textureCoordLoc = 1;
-	glBindBuffer (GL_ARRAY_BUFFER, vboIds[1]);
+	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
 	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray (textureCoordLoc);
 
+	const char* renderVP =
+		#include "shaders/displayVert.h"
 	const char* render08ToInternalFP =
 		#include "shaders/planar08ToInternal.h"
 	const char* render16ToInternalFP =
 		#include "shaders/planar16ToInternal.h"
+	const char* render422to444FP =
+		#include "shaders/up422to444.h"
 	const char* renderYuvToRgbFP =
 		#include "shaders/yuvToRgb.h"
 
 	// convert to internal format
 	GLuint renderToInternalSP = 0;
 	if (info->planes == 3) {
-		shader renderToInternalShader (displayVP, info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP, "highp");
+		shader renderToInternalShader (renderVP, info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP, "highp");
 		renderToInternalSP = renderToInternalShader.loadProgram ();
 
 		GLint renderToInternalYLoc = glGetUniformLocation (renderToInternalSP, "Y");
@@ -489,26 +497,48 @@ void videoRenderer::render () {
 	// convert 4:2:0 -> 4:2:2
 	GLuint render420to422SP = 0;
 	if (info->halfHeight) {
+		const char* render420to422FP =
+			#include "shaders/up420to422.h"
+		GLfloat pitch[4] = {(float) (1.0 / info->width), (float) (2.0 / info->width), (float) (1.0 / info->height), (float) (2.0 / info->height)};
 
+		shader render420to422Shader (renderVP, render420to422FP, "highp");
+		render420to422SP = render420to422Shader.loadProgram ();
+
+		GLint render420to422TextLoc = glGetUniformLocation (render420to422SP, "video");
+		GLint render420to422PtchLoc = glGetUniformLocation (render420to422SP, "pitch");
+		glUseProgram (render420to422SP);
+		glUniform1i (render420to422TextLoc, 0);
+		glUniform4fv (render420to422PtchLoc, 1, pitch);
 	}
 
 	// convert 4:2:2 -> 4:4:4
 	GLuint render422to444SP = 0;
 	if (info->halfWidth) {
+		const char* render422to444FP =
+			#include "shaders/up422to444.h"
+		GLfloat pitch[4] = {(float) (1.0 / info->width), (float) (2.0 / info->width), (float) (1.0 / info->height), (float) (2.0 / info->height)};
 
+		shader render422to444Shader (renderVP, render422to444FP, "highp");
+		render422to444SP = render422to444Shader.loadProgram ();
+
+		GLint render422to444TextLoc = glGetUniformLocation (render422to444SP, "video");
+		GLint render422to444PtchLoc = glGetUniformLocation (render422to444SP, "pitch");
+		glUseProgram (render422to444SP);
+		glUniform1i (render422to444TextLoc, 0);
+		glUniform4fv (render422to444PtchLoc, 1, pitch);
 	}
 
 	// convert YCbCr -> RGB
 	GLuint renderYuvToRgbSP = 0;
 	if (info->fourCC != pFormat::RGBA) {
-		shader renderYuvToRgbShader (displayVP, renderYuvToRgbFP, "highp");
+		shader renderYuvToRgbShader (renderVP, renderYuvToRgbFP, "highp");
 		renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
 
 		GLint renderYuvToRgbTextLoc = glGetUniformLocation (renderYuvToRgbSP, "video");
 		GLint renderYuvToRgbConvLoc = glGetUniformLocation (renderYuvToRgbSP, "conversion");
 		GLint renderYuvToRgbOfstLoc = glGetUniformLocation (renderYuvToRgbSP, "offset");
 		glUseProgram (renderYuvToRgbSP);
-		glUniform1i (renderYuvToRgbTextLoc, 3);
+		glUniform1i (renderYuvToRgbTextLoc, 0);
 		glUniformMatrix3fv (renderYuvToRgbConvLoc, 1, GL_FALSE, info->colorConversion);
 		glUniform3fv (renderYuvToRgbOfstLoc, 1, info->colorOffset);
 	}
@@ -553,22 +583,36 @@ void videoRenderer::render () {
 				glBindTexture (GL_TEXTURE_2D, from.plane[2]);
 
 				glViewport (0, 0, info->width, info->height);
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.plane, 0);
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t1.plane, 0);
 				glUseProgram (renderToInternalSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 			}
 
+			if (render420to422SP) {
+				glViewport (0, 0, info->width, info->height);
+				glActiveTexture (GL_TEXTURE0);
+				glBindTexture (GL_TEXTURE_2D, t1.plane);
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t2.plane, 0);
+				glUseProgram (render420to422SP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			}
+
+			if (render422to444SP) {
+				glViewport (0, 0, info->width, info->height);
+				glActiveTexture (GL_TEXTURE0);
+				glBindTexture (GL_TEXTURE_2D, t2.plane);
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t3.plane, 0);
+				glUseProgram (render422to444SP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			}
+
 			if (renderYuvToRgbSP) {
-				glViewport (0, 0, info->targetWidth, info->targetHeight);
-				glActiveTexture (GL_TEXTURE3);
-				glBindTexture (GL_TEXTURE_2D, t.plane);
+				glViewport (0, 0, info->width, info->height);
+				glActiveTexture (GL_TEXTURE0);
+				glBindTexture (GL_TEXTURE_2D, t3.plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 				glUseProgram (renderYuvToRgbSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-			} else {
-				GLuint tt = from.plane[0];
-				from.plane[0] = to.plane;
-				to.plane = tt;
 			}
 
 			glFlush ();

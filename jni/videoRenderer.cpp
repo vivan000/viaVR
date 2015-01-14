@@ -499,7 +499,7 @@ void videoRenderer::render () {
 	if (info->halfHeight) {
 		const char* render420to422FP =
 			#include "shaders/up420to422.h"
-		GLfloat pitch[4] = {(float) (1.0 / info->width), (float) (2.0 / info->width), (float) (1.0 / info->height), (float) (2.0 / info->height)};
+		GLfloat pitch[4] = {(float) (2.0 / info->height), (float) (1.0 / (info->height)), (float) (-0.5 / (info->height)), (float) (0.5 * (info->height))};
 
 		shader render420to422Shader (renderVP, render420to422FP, "highp");
 		render420to422SP = render420to422Shader.loadProgram ();
@@ -516,7 +516,6 @@ void videoRenderer::render () {
 	if (info->halfWidth) {
 		const char* render422to444FP =
 			#include "shaders/up422to444.h"
-		GLfloat pitch[4] = {(float) (1.0 / info->width), (float) (2.0 / info->width), (float) (1.0 / info->height), (float) (2.0 / info->height)};
 
 		shader render422to444Shader (renderVP, render422to444FP, "highp");
 		render422to444SP = render422to444Shader.loadProgram ();
@@ -525,7 +524,7 @@ void videoRenderer::render () {
 		GLint render422to444PtchLoc = glGetUniformLocation (render422to444SP, "pitch");
 		glUseProgram (render422to444SP);
 		glUniform1i (render422to444TextLoc, 0);
-		glUniform4fv (render422to444PtchLoc, 1, pitch);
+		glUniform1f (render422to444PtchLoc, (float) (1.0 / info->width));
 	}
 
 	// convert YCbCr -> RGB
@@ -607,7 +606,7 @@ void videoRenderer::render () {
 			}
 
 			if (renderYuvToRgbSP) {
-				glViewport (0, 0, info->width, info->height);
+				glViewport (0, 0, info->targetWidth, info->targetHeight);
 				glActiveTexture (GL_TEXTURE0);
 				glBindTexture (GL_TEXTURE_2D, t3.plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);

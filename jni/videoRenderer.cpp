@@ -196,44 +196,30 @@ bool videoRenderer::checkExtensions () {
 	}
 	extList.push_back (ext.substr (s, e - s));
 
-	bool extTex10 = false;		// 10-bit textures
-	bool extTex16 = false;		// 16-bit textures
-	bool extCol10 = false;		// 10-bit color buffer
-	bool extCol16 = false;		// 16-bit color buffer
-	bool extFrag16 = false;		// 16-bit processing
+	bool extHalf = false;		// half-float color buffer
+	bool extFull = false;		// float color buffer
 	bool extWriteOnly = false;
 	for (unsigned int i = 0; i < extList.size (); i++) {
-		if (!extList.at (i).compare ("GL_OES_texture_half_float"))
-			extTex10 = true;
-		if (!extList.at (i).compare ("GL_OES_texture_float"))
-			extTex16 = true;
 		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float"))
-			extCol10 = true;
+			extHalf = true;
 		if (!extList.at (i).compare ("GL_EXT_color_buffer_float"))
-			extCol16 = true;
-		if (!extList.at (i).compare ("GL_OES_fragment_precision_high"))
-			extFrag16 = true;
+			extFull = true;
 		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering"))
 			extWriteOnly = true;
 	}
 
-	// 10 bit storage is target and not supported
-	if (!storage16 && (!extTex10 || !extCol10))
+	// half-float texture is target and not supported
+	if ((precisionTex == 1) && !extHalf)
 		return false;
 
-	// 16 bit storage is target and not supported
-	if (storage16 && (!extTex16 || !extCol16))
-		return false;
-
-	// 16 bit processing is target and not supported
-	if (process16 && !extFrag16)
+	// float texture is target and not supported
+	if ((precisionTex == 2) && !extFull)
 		return false;
 
 	LOGD ("Extensions:");
-	LOGD ("Target texture: %i bit, target processing: %i bit", storage16 ? 16 : 10, process16 ? 16 : 10);
-	LOGD ("10 bit texture: %s", extTex10 ? "supported" : "not supported");
-	LOGD ("16 bit texture: %s", extTex16 ? "supported" : "not supported");
-	LOGD ("16 bit processing: %s", extFrag16 ? "supported" : "not supported");
+	LOGD ("Target texture: %i, target processing: %s", precisionTex, precisionHighp ? "highp" : "mediump");
+	LOGD ("Half-float texture: %s", extHalf ? "supported" : "not supported");
+	LOGD ("Float texture: %s", extFull ? "supported" : "not supported");
 	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 	return true;
 }

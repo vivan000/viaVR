@@ -6,8 +6,9 @@ enum class pFormat {
 	NONE,
 
 	// internal
-	HALF, // internal half float rgb - 10 bit 4:4:4
-	FULL, // internal full float rgb - 16 bit 4:4:4
+	INT10,		// normalized 10-bit integer rgb (RGB10_A2)
+	HALF_FLOAT,	// half float rgb (RGBA16F)
+	FLOAT,		// full float rgb (RGBA32F)
 
 	// 8-bit planar
 	P008 = FOURCC ('I', '4', '2', '0'), //  8 bit 4:2:0

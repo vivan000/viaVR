@@ -1,17 +1,17 @@
 #include "frames.h"
 
-frameGPUi::frameGPUi (int w, int h, int type) {
+frameGPUi::frameGPUi (int w, int h, pFormat type) {
 	GLenum internalFormat, format;
 	switch (type) {
-		case 0:
+		case pFormat::INT10:
 			internalFormat = GL_RGB10_A2;
 			format = GL_UNSIGNED_INT_2_10_10_10_REV;
 			break;
-		case 1:
+		case pFormat::HALF_FLOAT:
 			internalFormat = GL_RGBA16F;
 			format = GL_HALF_FLOAT;
 			break;
-		case 2:
+		case pFormat::FLOAT:
 			internalFormat = GL_RGBA32F;
 			format = GL_FLOAT;
 			break;

@@ -432,9 +432,9 @@ void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
 	frameGPUu from (info);
-	frameGPUi t1 (info->width, info->height, 0);
-	frameGPUi t2 (info->width, info->height, 0);
-	frameGPUi t3 (info->width, info->height, 0);
+	frameGPUi t1 (info->width, info->height, pFormat::INT10);
+	frameGPUi t2 (info->width, info->height, pFormat::INT10);
+	frameGPUi t3 (info->width, info->height, pFormat::INT10);
 	frameGPUo to (info);
 
 	// create FBO

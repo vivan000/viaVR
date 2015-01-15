@@ -68,8 +68,8 @@ private:
 	EGLSurface uploadPBuffer, uploadPBuffer2;
 	EGLSurface renderPBuffer, renderPBuffer2;
 
-	bool storage16 = false;
-	bool process16 = false;
+	int precisionTex = 0;
+	bool precisionHighp = true;
 
 	bool initialized;
 	int64_t start;

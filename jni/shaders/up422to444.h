@@ -9,7 +9,7 @@
 "void main () {															\n"
 "	float y = texture (video, coord).r;									\n"
 "	vec2 uv = mix (														\n"
-"		texture (video, coord + vec2 (  0.0, 0.0)).gb,					\n"
+"		texture (video, coord                    ).gb,					\n"
 "		texture (video, coord + vec2 (pitch, 0.0)).gb,					\n"
 "		0.5);															\n"
 "	outColor = vec4 (y,	uv, 1.0);										\n"

@@ -451,33 +451,42 @@ void videoRenderer::render () {
 	// shaders
 	const char* renderVP =
 		#include "shaders/displayVert.h"
-	const char* render08ToInternalFP =
-		#include "shaders/planar08ToInternal.h"
-	const char* render16ToInternalFP =
-		#include "shaders/planar16ToInternal.h"
-	const char* render422to444FP =
-		#include "shaders/up422to444.h"
-	const char* renderYuvToRgbFP =
-		#include "shaders/yuvToRgb.h"
 
 	int internalCount = 0;
 
 	// convert to internal format
 	GLuint renderToInternalSP = 0;
-	if (info->planes == 3) {
-		shader renderToInternalShader (renderVP, info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP, "highp");
-		renderToInternalSP = renderToInternalShader.loadProgram ();
+	switch (info->planes) {
+		case 3: {
+			const char* render08ToInternalFP =
+				#include "shaders/planar08ToInternal.h"
+			const char* render16ToInternalFP =
+				#include "shaders/planar16ToInternal.h"
 
-		GLint renderToInternalYLoc = glGetUniformLocation (renderToInternalSP, "Y");
-		GLint renderToInternalCbLoc = glGetUniformLocation (renderToInternalSP, "Cb");
-		GLint renderToInternalCrLoc = glGetUniformLocation (renderToInternalSP, "Cr");
-		glUseProgram (renderToInternalSP);
-		glUniform1i (renderToInternalYLoc, 0);
-		glUniform1i (renderToInternalCbLoc, 1);
-		glUniform1i (renderToInternalCrLoc, 2);
+			shader renderToInternalShader (renderVP, info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP, "highp");
+			renderToInternalSP = renderToInternalShader.loadProgram ();
 
-		++internalCount;
+			glUseProgram (renderToInternalSP);
+			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
+			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
+			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
+			break;
+		}
+
+		case 1: {
+			const char* renderRgbToInteralFP =
+				#include "shaders/displayFrag.h"
+
+				shader renderToInternalShader (renderVP, renderRgbToInteralFP, "highp");
+				renderToInternalSP = renderToInternalShader.loadProgram ();
+
+				glUseProgram (renderToInternalSP);
+				glUniform1i (glGetUniformLocation (renderToInternalSP, "video"),  0);
+
+			break;
+		}
 	}
+	++internalCount;
 
 	// convert 4:2:0 -> 4:2:2
 	GLuint render420to422SP = 0;
@@ -489,11 +498,9 @@ void videoRenderer::render () {
 		shader render420to422Shader (renderVP, render420to422FP, "highp");
 		render420to422SP = render420to422Shader.loadProgram ();
 
-		GLint render420to422TextLoc = glGetUniformLocation (render420to422SP, "video");
-		GLint render420to422PtchLoc = glGetUniformLocation (render420to422SP, "pitch");
 		glUseProgram (render420to422SP);
-		glUniform1i (render420to422TextLoc, 0);
-		glUniform4fv (render420to422PtchLoc, 1, pitch);
+		glUniform1i  (glGetUniformLocation (render420to422SP, "video"), 0);
+		glUniform4fv (glGetUniformLocation (render420to422SP, "pitch"), 1, pitch);
 
 		++internalCount;
 	}
@@ -507,11 +514,9 @@ void videoRenderer::render () {
 		shader render422to444Shader (renderVP, render422to444FP, "highp");
 		render422to444SP = render422to444Shader.loadProgram ();
 
-		GLint render422to444TextLoc = glGetUniformLocation (render422to444SP, "video");
-		GLint render422to444PtchLoc = glGetUniformLocation (render422to444SP, "pitch");
 		glUseProgram (render422to444SP);
-		glUniform1i (render422to444TextLoc, 0);
-		glUniform1f (render422to444PtchLoc, (float) (1.0 / info->width));
+		glUniform1i (glGetUniformLocation (render422to444SP, "video"), 0);
+		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
 
 		++internalCount;
 	}
@@ -519,16 +524,16 @@ void videoRenderer::render () {
 	// convert YCbCr -> RGB
 	GLuint renderYuvToRgbSP = 0;
 	if (info->fourCC != pFormat::RGBA) {
+		const char* renderYuvToRgbFP =
+			#include "shaders/yuvToRgb.h"
+
 		shader renderYuvToRgbShader (renderVP, renderYuvToRgbFP, "highp");
 		renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
 
-		GLint renderYuvToRgbTextLoc = glGetUniformLocation (renderYuvToRgbSP, "video");
-		GLint renderYuvToRgbConvLoc = glGetUniformLocation (renderYuvToRgbSP, "conversion");
-		GLint renderYuvToRgbOfstLoc = glGetUniformLocation (renderYuvToRgbSP, "offset");
 		glUseProgram (renderYuvToRgbSP);
-		glUniform1i (renderYuvToRgbTextLoc, 0);
-		glUniformMatrix3fv (renderYuvToRgbConvLoc, 1, GL_FALSE, info->colorConversion);
-		glUniform3fv (renderYuvToRgbOfstLoc, 1, info->colorOffset);
+		glUniform1i			(glGetUniformLocation (renderYuvToRgbSP, "video"),		0);
+		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "conversion"), 1, GL_FALSE, info->colorConversion);
+		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
 
 		++internalCount;
 	}
@@ -558,7 +563,16 @@ void videoRenderer::render () {
 	}
 
 	// dither
-	GLuint renderDitherSP = 0;
+	GLuint renderDitherSP = 0; {
+		const char* renderDitherFP =
+			#include "shaders/displayFrag.h"
+
+		shader renderDitherShader (renderVP, renderDitherFP, "highp");
+		renderDitherSP = renderDitherShader.loadProgram ();
+
+		glUseProgram (renderDitherSP);
+		glUniform1i (glGetUniformLocation (renderDitherSP, "video"),  0);
+	}
 
 	frameGPUi** internal = new frameGPUi*[internalCount];
 	for (int i = 0; i < internalCount; i++)
@@ -576,23 +590,15 @@ void videoRenderer::render () {
 
 			int internalCurrent = 0;
 
-			if (renderToInternalSP) {
-				glActiveTexture (GL_TEXTURE0);
-				glBindTexture (GL_TEXTURE_2D, from.plane[0]);
-
-				glActiveTexture (GL_TEXTURE1);
-				glBindTexture (GL_TEXTURE_2D, from.plane[1]);
-
-				glActiveTexture (GL_TEXTURE2);
-				glBindTexture (GL_TEXTURE_2D, from.plane[2]);
-
-				glActiveTexture (GL_TEXTURE0);
-
-				glViewport (0, 0, info->width, info->height);
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[internalCurrent]->plane, 0);
-				glUseProgram (renderToInternalSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			for (int i = 0; i < info->planes; i++) {
+				glActiveTexture (GL_TEXTURE0 + i);
+				glBindTexture (GL_TEXTURE_2D, from.plane[i]);
 			}
+			glActiveTexture (GL_TEXTURE0);
+			glViewport (0, 0, info->width, info->height);
+			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[internalCurrent]->plane, 0);
+			glUseProgram (renderToInternalSP);
+			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 			if (render420to422SP) {
 				glViewport (0, 0, info->width, info->height);
@@ -613,10 +619,32 @@ void videoRenderer::render () {
 			if (renderYuvToRgbSP) {
 				glViewport (0, 0, info->targetWidth, info->targetHeight);
 				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (renderYuvToRgbSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 			}
+
+			if (renderScaleHeightSP) {
+				glViewport (0, 0, info->width, info->targetHeight);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
+				glUseProgram (renderScaleHeightSP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			}
+
+			if (renderScaleWidthSP) {
+				glViewport (0, 0, info->targetWidth, info->targetHeight);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
+				glUseProgram (renderScaleWidthSP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			}
+
+			glViewport (0, 0, info->targetWidth, info->targetHeight);
+			glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
+			glUseProgram (renderDitherSP);
+			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 			glFlush ();
 

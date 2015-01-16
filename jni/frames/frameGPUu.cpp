@@ -9,6 +9,8 @@ frameGPUu::frameGPUu (videoInfo* f) {
 		glBindTexture (GL_TEXTURE_2D, plane[i]);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		if (!i)
 			glTexImage2D (GL_TEXTURE_2D, 0,	f->internalLumaFormat, f->width, f->height,
 				0, f->lumaFormat, f->lumaType, NULL);

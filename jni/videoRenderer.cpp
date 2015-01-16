@@ -452,6 +452,7 @@ void videoRenderer::render () {
 	const char* renderVP =
 		#include "shaders/displayVert.h"
 
+	frameGPUi** internal = new frameGPUi*[8];
 	int internalCount = 0;
 
 	// convert to internal format
@@ -486,7 +487,7 @@ void videoRenderer::render () {
 			break;
 		}
 	}
-	++internalCount;
+	internal[internalCount++] = new frameGPUi (info->width, info->height, pFormat::INT10);
 
 	// convert 4:2:0 -> 4:2:2
 	GLuint render420to422SP = 0;
@@ -502,7 +503,7 @@ void videoRenderer::render () {
 		glUniform1i  (glGetUniformLocation (render420to422SP, "video"), 0);
 		glUniform4fv (glGetUniformLocation (render420to422SP, "pitch"), 1, pitch);
 
-		++internalCount;
+		internal[internalCount++] = new frameGPUi (info->width, info->height, pFormat::INT10);
 	}
 
 	// convert 4:2:2 -> 4:4:4
@@ -518,7 +519,7 @@ void videoRenderer::render () {
 		glUniform1i (glGetUniformLocation (render422to444SP, "video"), 0);
 		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
 
-		++internalCount;
+		internal[internalCount++] = new frameGPUi (info->width, info->height, pFormat::INT10);
 	}
 
 	// convert YCbCr -> RGB
@@ -535,7 +536,7 @@ void videoRenderer::render () {
 		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "conversion"), 1, GL_FALSE, info->colorConversion);
 		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
 
-		++internalCount;
+		internal[internalCount++] = new frameGPUi (info->width, info->height, pFormat::INT10);
 	}
 
 	// scale height
@@ -547,19 +548,19 @@ void videoRenderer::render () {
 
 		}
 
-		++internalCount;
+		internal[internalCount++] = new frameGPUi (info->width, info->targetHeight, pFormat::INT10);
 	}
 
 	// scale width
 	GLuint renderScaleWidthSP = 0;
-	if (info->targetHeight != info->height) {
-		if (info->targetHeight > info->height) {
+	if (info->targetWidth != info->width) {
+		if (info->targetWidth > info->width) {
 
 		} else {
 
 		}
 
-		++internalCount;
+		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, pFormat::INT10);
 	}
 
 	// dither
@@ -573,10 +574,8 @@ void videoRenderer::render () {
 		glUseProgram (renderDitherSP);
 		glUniform1i (glGetUniformLocation (renderDitherSP, "video"),  0);
 	}
+	internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, pFormat::INT10);
 
-	frameGPUi** internal = new frameGPUi*[internalCount];
-	for (int i = 0; i < internalCount; i++)
-		internal[i] = new frameGPUi (info->width, info->height, pFormat::INT10);
 
 	frameGPUu from (info);
 	frameGPUo to (info);
@@ -601,7 +600,6 @@ void videoRenderer::render () {
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 			if (render420to422SP) {
-				glViewport (0, 0, info->width, info->height);
 				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (render420to422SP);
@@ -609,7 +607,6 @@ void videoRenderer::render () {
 			}
 
 			if (render422to444SP) {
-				glViewport (0, 0, info->width, info->height);
 				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (render422to444SP);
@@ -617,7 +614,6 @@ void videoRenderer::render () {
 			}
 
 			if (renderYuvToRgbSP) {
-				glViewport (0, 0, info->targetWidth, info->targetHeight);
 				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (renderYuvToRgbSP);

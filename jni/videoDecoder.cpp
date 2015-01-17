@@ -1,6 +1,6 @@
 #include "videoDecoder.h"
 #include "videoInfo.h"
-#include "log.h"
+#include <math.h>
 
 videoDecoder::videoDecoder () {
 	width = 720;
@@ -81,15 +81,15 @@ videoDecoder::videoDecoder () {
 			for (int y = 0; y < info->height; ++y)
 				for (int x = 0; x < info->width; ++x) {
 					int luma = 16;
-					if (((x + y) % 20 == 1) || ((x - y) % 20 == 1) || ((x + y) % 20 == 19) || ((x - y) % 20 == 19))
+					if (((x + y) % 20 == 1) || (abs (x - y) % 20 == 1) || ((x + y) % 20 == 19) || (abs (x - y) % 20 == 19))
 						luma = 49;
-					if (((x + y) % 20 == 0) || ((x - y) % 20 == 0))
+					if (((x + y) % 20 == 0) || (abs (x - y) % 20 == 0))
 						luma = 82;
 					dataR[info->width * y + x] = luma;
 				}
 			for (int y = 0; y < info->chromaHeight; ++y)
 				for (int x = 0; x < info->chromaWidth; ++x) {
-					bool line = (((x * 2 + y * 2) % 20 == 0) || ((x * 2 - y * 2) % 20 == 0));
+					bool line = (((x * 2 + y * 2) % 20 == 0) || (abs (x * 2 - y * 2) % 20 == 0));
 					dataG[info->chromaWidth * y + x] = line ? 90 : 128;
 					dataB[info->chromaWidth * y + x] = line ? 240 : 128;
 				}
@@ -102,15 +102,15 @@ videoDecoder::videoDecoder () {
 			for (int y = 0; y < info->height; ++y)
 				for (int x = 0; x < info->width; ++x) {
 					int luma = 16*256;
-					if (((x + y) % 20 == 1) || ((x - y) % 20 == 1) || ((x + y) % 20 == 19) || ((x - y) % 20 == 19))
+					if (((x + y) % 20 == 1) || (abs (x - y) % 20 == 1) || ((x + y) % 20 == 19) || (abs (x - y) % 20 == 19))
 						luma = 49*256;
-					if (((x + y) % 20 == 0) || ((x - y) % 20 == 0))
+					if (((x + y) % 20 == 0) || (abs (x - y) % 20 == 0))
 						luma = 82*256;
 					((unsigned short*) dataR)[info->width * y + x] = luma;
 				}
 			for (int y = 0; y < info->chromaHeight; ++y)
 				for (int x = 0; x < info->chromaWidth; ++x) {
-					bool line = (((x * 2 + y * 2) % 20 == 0) || ((x * 2 - y * 2) % 20 == 0));
+					bool line = (((x * 2 + y * 2) % 20 == 0) || (abs (x * 2 - y * 2) % 20 == 0));
 					((unsigned short*) dataG)[info->chromaWidth * y + x] = line ? 90*256 : 128*256;
 					((unsigned short*) dataB)[info->chromaWidth * y + x] = line ? 240*256 : 128*256;
 				}

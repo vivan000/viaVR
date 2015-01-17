@@ -13,7 +13,7 @@ videoDecoder::videoDecoder () {
 	matrix = 1;
 	decoderCount = 0;
 
-	int mode = 4;
+	int mode = 5;
 
 	switch (mode) {
 		case 1:

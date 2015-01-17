@@ -213,12 +213,12 @@ videoInfo::videoInfo (int videoWidth, int videoHeight, int videoFourCC, int vide
 		case pFormat::P016:
 		case pFormat::P216:
 		case pFormat::P416:
-			internalLumaFormat = GL_R16UI;
-			internalChromaFormat = GL_R16UI;
-			lumaFormat = GL_RED_INTEGER;
-			chromaFormat = GL_RED_INTEGER;
-			lumaType = GL_UNSIGNED_SHORT;
-			chromaType = GL_UNSIGNED_SHORT;
+			internalLumaFormat = GL_RG8;
+			internalChromaFormat = GL_RG8;
+			lumaFormat = GL_RG;
+			chromaFormat = GL_RG;
+			lumaType = GL_UNSIGNED_BYTE;
+			chromaType = GL_UNSIGNED_BYTE;
 			break;
 
 		case pFormat::NV12:

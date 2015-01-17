@@ -1,11 +1,11 @@
 #include "frames.h"
 
 frameGPUu::frameGPUu (videoInfo* f) {
+	bool hwChroma = true;
 	numberOfPlanes = f->planes;
 	plane = new GLuint[numberOfPlanes];
 	glGenTextures (numberOfPlanes, plane);
 
-	bool hwChroma = true;
 	for (int i = 0; i < numberOfPlanes; i++) {
 		glBindTexture (GL_TEXTURE_2D, plane[i]);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, hwChroma && i ? GL_LINEAR : GL_NEAREST);

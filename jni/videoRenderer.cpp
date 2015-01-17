@@ -466,11 +466,12 @@ void videoRenderer::render () {
 	frameGPUi** internal = new frameGPUi*[8];
 	pFormat internalType = pFormat::INT10;
 	const char* precision = "highp";
+	bool hwChroma = true;
+	bool hwScaling = true;
 	int internalCount = 0;
 
 	// convert to internal format
 	GLuint renderToInternalSP = 0;
-	bool hwChroma = true;
 	switch (info->planes) {
 		case 3: {
 			const char* render08ToInternalFP =
@@ -479,7 +480,7 @@ void videoRenderer::render () {
 				#include "shaders/planar16ToInternal.h"
 
 			shader renderToInternalShader (renderVP,
-					info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP,
+					info->lumaFormat == GL_RED ? render08ToInternalFP : render16ToInternalFP,
 					"highp", hwChroma ? "#define HWCHROMA" : "");
 			renderToInternalSP = renderToInternalShader.loadProgram ();
 
@@ -559,18 +560,11 @@ void videoRenderer::render () {
 
 	// scale height
 	GLuint renderScaleHeightSP = 0;
-	if (info->targetHeight != info->height) {
+	if (info->targetHeight != info->height && !hwScaling) {
 		if (info->targetHeight > info->height) {
 
 		} else {
-			const char* renderScaleHeightFP =
-				#include "shaders/displayFrag.h"
 
-			shader renderScaleHeightShader (renderVP, renderScaleHeightFP, precision);
-			renderScaleHeightSP = renderScaleHeightShader.loadProgram ();
-
-			glUseProgram (renderScaleHeightSP);
-			glUniform1i (glGetUniformLocation (renderScaleHeightSP, "video"), 0);
 		}
 
 		internal[internalCount++] = new frameGPUi (info->width, info->targetHeight, internalType);
@@ -578,21 +572,13 @@ void videoRenderer::render () {
 
 	// scale width
 	GLuint renderScaleWidthSP = 0;
-	if (info->targetWidth != info->width) {
+	if (info->targetWidth != info->width && !hwScaling) {
 		if (info->targetWidth > info->width) {
 
 		} else {
-			const char* renderScaleWidthFP =
-				#include "shaders/displayFrag.h"
 
-			shader renderScaleWidthShader (renderVP, renderScaleWidthFP, precision);
-			renderScaleWidthSP = renderScaleWidthShader.loadProgram ();
-
-			glUseProgram (renderScaleWidthSP);
-			glUniform1i (glGetUniformLocation (renderScaleWidthSP, "video"), 0);
 		}
 
-		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType);
 	}
 
 	// dither

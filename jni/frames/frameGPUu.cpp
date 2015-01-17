@@ -5,10 +5,11 @@ frameGPUu::frameGPUu (videoInfo* f) {
 	plane = new GLuint[numberOfPlanes];
 	glGenTextures (numberOfPlanes, plane);
 
+	bool hwChroma = true;
 	for (int i = 0; i < numberOfPlanes; i++) {
 		glBindTexture (GL_TEXTURE_2D, plane[i]);
-		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, hwChroma && i ? GL_LINEAR : GL_NEAREST);
+		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, hwChroma && i ? GL_LINEAR : GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		if (!i)

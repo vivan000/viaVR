@@ -470,6 +470,7 @@ void videoRenderer::render () {
 
 	// convert to internal format
 	GLuint renderToInternalSP = 0;
+	bool hwChroma = true;
 	switch (info->planes) {
 		case 3: {
 			const char* render08ToInternalFP =
@@ -477,13 +478,17 @@ void videoRenderer::render () {
 			const char* render16ToInternalFP =
 				#include "shaders/planar16ToInternal.h"
 
-			shader renderToInternalShader (renderVP, info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP, "highp");
+			shader renderToInternalShader (renderVP,
+					info->lumaType == GL_UNSIGNED_BYTE ? render08ToInternalFP : render16ToInternalFP,
+					"highp", hwChroma ? "#define HWCHROMA" : "");
 			renderToInternalSP = renderToInternalShader.loadProgram ();
 
 			glUseProgram (renderToInternalSP);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
+			if (hwChroma)
+				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
 			break;
 		}
 
@@ -504,7 +509,7 @@ void videoRenderer::render () {
 
 	// convert 4:2:0 -> 4:2:2
 	GLuint render420to422SP = 0;
-	if (info->halfHeight) {
+	if (info->halfHeight && !hwChroma) {
 		const char* render420to422FP =
 			#include "shaders/up420to422.h"
 		GLfloat pitch[4] = {(float) (2.0 / info->height), (float) (1.0 / (info->height)), (float) (-0.5 / (info->height)), (float) (0.5 * (info->height))};
@@ -521,7 +526,7 @@ void videoRenderer::render () {
 
 	// convert 4:2:2 -> 4:4:4
 	GLuint render422to444SP = 0;
-	if (info->halfWidth) {
+	if (info->halfWidth && !hwChroma) {
 		const char* render422to444FP =
 			#include "shaders/up422to444.h"
 

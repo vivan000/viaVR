@@ -196,30 +196,41 @@ bool videoRenderer::checkExtensions () {
 	}
 	extList.push_back (ext.substr (s, e - s));
 
-	bool extHalf = false;		// half-float color buffer
-	bool extFull = false;		// float color buffer
+	bool extColorHalfFloat = false;
+	bool extColorFloat = false;
+	bool extBinningControl = false;
 	bool extWriteOnly = false;
+
 	for (unsigned int i = 0; i < extList.size (); i++) {
 		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float"))
-			extHalf = true;
+			extColorHalfFloat = true;
 		if (!extList.at (i).compare ("GL_EXT_color_buffer_float"))
-			extFull = true;
+			extColorFloat = true;
+		if (!extList.at (i).compare ("GL_QCOM_binning_control"))
+			extBinningControl = true;
 		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering"))
 			extWriteOnly = true;
 	}
 
 	// half-float texture is target and not supported
-	if ((precisionTex == 1) && !extHalf)
+	if ((precisionTex == 1) && !extColorHalfFloat)
 		return false;
 
 	// float texture is target and not supported
-	if ((precisionTex == 2) && !extFull)
+	if ((precisionTex == 2) && !extColorFloat)
 		return false;
+
+	if (extBinningControl)
+		glHint (0x8FB0, 0x8FB3); // BINNING_CONTROL_HINT_QCOM, RENDER_DIRECT_TO_FRAMEBUFFER_QCOM
+
+	if (extWriteOnly)
+		glEnable (0x8823); // WRITEONLY_RENDERING_QCOM
 
 	LOGD ("Extensions:");
 	LOGD ("Target texture: %i, target processing: %s", precisionTex, precisionHighp ? "highp" : "mediump");
-	LOGD ("Half-float texture: %s", extHalf ? "supported" : "not supported");
-	LOGD ("Float texture: %s", extFull ? "supported" : "not supported");
+	LOGD ("Half-float texture: %s", extColorHalfFloat ? "supported" : "not supported");
+	LOGD ("Float texture: %s", extColorFloat ? "supported" : "not supported");
+	LOGD ("Binning control: %s", extBinningControl ? "supported" : "not supported");
 	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 	return true;
 }

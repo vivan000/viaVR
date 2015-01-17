@@ -4,7 +4,7 @@
 
 videoDecoder::videoDecoder () {
 	width = 720;
-	height = 1038;
+	height = 720; // 1038;
 	sarWidth = 1;
 	sarHeight = 1;
 	fpsNumerator = 30;
@@ -13,7 +13,7 @@ videoDecoder::videoDecoder () {
 	matrix = 1;
 	decoderCount = 0;
 
-	int mode = 5;
+	int mode = 4;
 
 	switch (mode) {
 		case 1:
@@ -27,6 +27,10 @@ videoDecoder::videoDecoder () {
 		case 3:
 			fourCC = (int) pFormat::P416;
 			bpp = 2;
+			break;
+		case 4:
+			fourCC = (int) pFormat::P008;
+			bpp = 1;
 			break;
 		case 5:
 			fourCC = (int) pFormat::P010;
@@ -67,6 +71,27 @@ videoDecoder::videoDecoder () {
 					((unsigned short*) dataR)[width * y + x] = 32768;
 					((unsigned short*) dataG)[width * y + x] = x * 65535 / (width - 1);
 					((unsigned short*) dataB)[width * y + x] = 65535 - (y * 65535 / (height - 1));
+				}
+			break;
+		case 4:
+			// planar 8-bit 4:2:0 (P008)
+			dataR = new unsigned char[info->width * info->height * bpp];
+			dataG = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
+			for (int y = 0; y < info->height; ++y)
+				for (int x = 0; x < info->width; ++x) {
+					int luma = 16;
+					if (((x + y) % 20 == 1) || ((x - y) % 20 == 1) || ((x + y) % 20 == 19) || ((x - y) % 20 == 19))
+						luma = 49;
+					if (((x + y) % 20 == 0) || ((x - y) % 20 == 0))
+						luma = 82;
+					dataR[info->width * y + x] = luma;
+				}
+			for (int y = 0; y < info->chromaHeight; ++y)
+				for (int x = 0; x < info->chromaWidth; ++x) {
+					bool line = (((x * 2 + y * 2) % 20 == 0) || ((x * 2 - y * 2) % 20 == 0));
+					dataG[info->chromaWidth * y + x] = line ? 90 : 128;
+					dataB[info->chromaWidth * y + x] = line ? 240 : 128;
 				}
 			break;
 		case 5:

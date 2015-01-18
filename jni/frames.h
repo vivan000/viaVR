@@ -32,7 +32,7 @@ public:
 	GLuint plane;
 	int timecode;
 
-	frameGPUi (int w, int h, pFormat type);
+	frameGPUi (int w, int h, pFormat type, videoInfo* f);
 	~frameGPUi ();
 };
 

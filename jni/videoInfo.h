@@ -72,6 +72,9 @@ public:
 	GLfloat colorConversion[9];
 	GLfloat colorOffset[3];
 
+	bool hwChroma, hwScale;
+	bool hwChromaLinear, hwScaleLinear;
+
 private:
 	double rangeY, rangeC, luma0, Kb, Kr;
 };

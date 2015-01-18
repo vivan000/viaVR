@@ -1,7 +1,6 @@
 #include "frames.h"
 
-frameGPUi::frameGPUi (int w, int h, pFormat type) {
-	bool hwScaling = true;
+frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) {
 	GLenum internalFormat, format;
 	switch (type) {
 		case pFormat::INT10:
@@ -19,8 +18,8 @@ frameGPUi::frameGPUi (int w, int h, pFormat type) {
 	}
 	glGenTextures (1, &plane);
 	glBindTexture (GL_TEXTURE_2D, plane);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, hwScaling ? GL_LINEAR : GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, hwScaling ? GL_LINEAR : GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f->hwScaleLinear ? GL_LINEAR : GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f->hwScaleLinear ? GL_LINEAR : GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexImage2D (GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, format, NULL);

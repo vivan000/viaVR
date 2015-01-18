@@ -34,8 +34,8 @@
 "void main () {															\n"
 "	float y = texture (YCbCr, coord).r;									\n"
 "	vec2 uv = mix (														\n"
-"		texture (CbCr, coord                    ).gb,					\n"
-"		texture (CbCr, coord + vec2 (pitch, 0.0)).gb,					\n"
+"		texture (CbCr, coord).gb,										\n"
+"		texture (CbCr, vec2 (coord.x + pitch, coord.y)).gb,				\n"
 "		0.5);															\n"
 "	outColor = vec4 (y,	uv, 1.0);										\n"
 "}																		\n";

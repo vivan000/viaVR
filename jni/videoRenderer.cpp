@@ -100,10 +100,10 @@ bool videoRenderer::addVideoDecoder (videoDecoder* video) {
 	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", (int) info->range == video->getRange () ? "upstream" : "guess");
 	LOGD ("Framerate: %i/%i", video->getFpsNumerator (), video->getFpsDenominator ());
 
-	info->hwChroma = true;
-	info->hwChromaLinear = true;
-	info->hwScale = true;
-	info->hwScaleLinear = true;
+	info->hwChroma = false;
+	info->hwChromaLinear = false;
+	info->hwScale = false;
+	info->hwScaleLinear = false;
 
 	return true;
 }
@@ -541,10 +541,10 @@ void videoRenderer::render () {
 		render420to422SP = render420to422Shader.loadProgram ();
 
 		glUseProgram (render420to422SP);
-		glUniform1i  (glGetUniformLocation (render420to422SP, "video"), 0);
+		glUniform1i  (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
 		glUniform4fv (glGetUniformLocation (render420to422SP, "pitch"), 1, pitch);
 
-		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+		internal[internalCount++] = new frameGPUi (info->chromaWidth, info->height, internalType, info);
 	}
 
 	// convert 4:2:2 -> 4:4:4
@@ -553,11 +553,13 @@ void videoRenderer::render () {
 		const char* render422to444FP =
 			#include "shaders/up422to444.h"
 
-		shader render422to444Shader (renderVP, render422to444FP, precision);
+		shader render422to444Shader (renderVP, render422to444FP, precision, info->halfHeight ? "#define SEPARATE" : "");
 		render422to444SP = render422to444Shader.loadProgram ();
 
 		glUseProgram (render422to444SP);
-		glUniform1i (glGetUniformLocation (render422to444SP, "video"), 0);
+		glUniform1i (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
+		if (info->halfHeight)
+			glUniform1i (glGetUniformLocation (render422to444SP, "CbCr"), 1);
 		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
 
 		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
@@ -640,46 +642,53 @@ void videoRenderer::render () {
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[internalCurrent]->plane, 0);
 			glUseProgram (renderToInternalSP);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 
 			if (render420to422SP) {
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+				// render only chroma
+				glViewport (0, 0, info->chromaWidth, info->height);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (render420to422SP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
+				// bind chroma to texture 1
+				glActiveTexture (GL_TEXTURE0 + 1);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+				glActiveTexture (GL_TEXTURE0);
+				glViewport (0, 0, info->width, info->height);
 			}
 
 			if (render422to444SP) {
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (render422to444SP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 			}
 
 			if (renderYuvToRgbSP) {
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (renderYuvToRgbSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 			}
 
 			if (renderScaleHeightSP) {
 				glViewport (0, 0, info->width, info->targetHeight);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (renderScaleHeightSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 			}
 
 			if (renderScaleWidthSP) {
 				glViewport (0, 0, info->targetWidth, info->targetHeight);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (renderScaleWidthSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 			}
 
 			glViewport (0, 0, info->targetWidth, info->targetHeight);
-			glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 			glUseProgram (renderDitherSP);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);

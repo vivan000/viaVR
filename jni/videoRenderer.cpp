@@ -607,18 +607,43 @@ void videoRenderer::render () {
 	}
 
 	// dither
+	srand (time(NULL));
+	int ditherSizeX = 32;
+	int ditherSizeY = 32;
+	unsigned int* d = new unsigned int[ditherSizeX * ditherSizeY];
+	for (int y = 0; y < ditherSizeY; ++y)
+		for (int x = 0; x < ditherSizeX; ++x)
+			d[ditherSizeX * y + x] = (rand() % 256 << 0) | (rand() % 256 << 8) | (rand() % 256 << 16) | (0xFF << 24);
+
+	frameGPUi dither (ditherSizeX, ditherSizeY, pFormat::DITHER, info);
+	glActiveTexture (GL_TEXTURE0 + 3);
+	glBindTexture (GL_TEXTURE_2D, dither.plane);
+	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, ditherSizeX, ditherSizeY, GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid*) d);
+	glActiveTexture (GL_TEXTURE0);
+
+	delete[] d;
+
 	GLuint renderDitherSP = 0; {
 		const char* renderDitherFP =
-			#include "shaders/displayFrag.h"
+			#include "shaders/dither.h"
 
 		shader renderDitherShader (renderVP, renderDitherFP, precision);
 		renderDitherSP = renderDitherShader.loadProgram ();
 
 		glUseProgram (renderDitherSP);
 		glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
-	}
-	internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType, info);
+		glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), 3);
 
+		int bitdepth = 8;
+		glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
+				(float) (pow (2.0, bitdepth) - 1.0),
+				(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
+		glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
+				(float) ((double) info->targetWidth / ditherSizeX),
+				(float) ((double) info->targetHeight / ditherSizeY));
+
+		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType, info);
+	}
 
 	frameGPUu from (info);
 	frameGPUo to (info);

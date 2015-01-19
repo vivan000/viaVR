@@ -502,8 +502,8 @@ void videoRenderer::render () {
 				#include "shaders/planar16ToInternal.h"
 
 			shader renderToInternalShader (renderVP,
-					info->lumaFormat == GL_RED ? render08ToInternalFP : render16ToInternalFP,
-					"highp", info->hwChroma ? "#define HWCHROMA" : "");
+				info->lumaFormat == GL_RED ? render08ToInternalFP : render16ToInternalFP,
+				"highp", info->hwChroma ? "#define HWCHROMA" : "");
 			renderToInternalSP = renderToInternalShader.loadProgram ();
 
 			glUseProgram (renderToInternalSP);
@@ -519,11 +519,11 @@ void videoRenderer::render () {
 			const char* renderRgbToInteralFP =
 				#include "shaders/displayFrag.h"
 
-				shader renderToInternalShader (renderVP, renderRgbToInteralFP, "highp");
-				renderToInternalSP = renderToInternalShader.loadProgram ();
+			shader renderToInternalShader (renderVP, renderRgbToInteralFP, "highp");
+			renderToInternalSP = renderToInternalShader.loadProgram ();
 
-				glUseProgram (renderToInternalSP);
-				glUniform1i (glGetUniformLocation (renderToInternalSP, "video"),  0);
+			glUseProgram (renderToInternalSP);
+			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"),  0);
 
 			break;
 		}
@@ -535,14 +535,15 @@ void videoRenderer::render () {
 	if (info->halfHeight && !info->hwChroma) {
 		const char* render420to422FP =
 			#include "shaders/up420to422.h"
-		GLfloat pitch[4] = {(float) (2.0 / info->height), (float) (1.0 / (info->height)), (float) (-0.5 / (info->height)), (float) (0.5 * (info->height))};
 
 		shader render420to422Shader (renderVP, render420to422FP, precision);
 		render420to422SP = render420to422Shader.loadProgram ();
 
 		glUseProgram (render420to422SP);
-		glUniform1i  (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
-		glUniform4fv (glGetUniformLocation (render420to422SP, "pitch"), 1, pitch);
+		glUniform1i (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
+		glUniform4f (glGetUniformLocation (render420to422SP, "pitch"),
+			(float) ( 2.0 / info->height), (float) (1.0 / info->height),
+			(float) (-0.5 / info->height), (float) (0.5 * info->height));
 
 		internal[internalCount++] = new frameGPUi (info->chromaWidth, info->height, internalType, info);
 	}
@@ -636,11 +637,11 @@ void videoRenderer::render () {
 
 		int bitdepth = 8;
 		glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
-				(float) (pow (2.0, bitdepth) - 1.0),
-				(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
+			(float) (pow (2.0, bitdepth) - 1.0),
+			(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
 		glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
-				(float) ((double) info->targetWidth / ditherSizeX),
-				(float) ((double) info->targetHeight / ditherSizeY));
+			(float) ((double) info->targetWidth / ditherSizeX),
+			(float) ((double) info->targetHeight / ditherSizeY));
 
 		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType, info);
 	}

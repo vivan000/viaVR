@@ -17,22 +17,22 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-"#version 300 es														\n"
-"precision %s float;													\n"
-"																		\n"
-"uniform	sampler2D	video;											\n"
-"uniform	sampler2D	dither;											\n"
-"uniform	vec2		depth;											\n"
-"uniform	vec2		resize;											\n"
-"uniform	vec2		offset;											\n"
-"in			vec2		coord;											\n"
-"out		vec4		outColor;										\n"
-"																		\n"
-"void main () {															\n"
-"	vec3 pattern = texture (dither, coord * resize + offset).rrr;		\n"
-"	vec3 patternShift = pattern * 1023.0 / 1024.0;						\n"
-"	patternShift.g = 1023.0 / 1024.0 - patternShift.g;					\n"
-"	vec3 preQ = texture (video, coord).rgb * depth.x;					\n"
-"	vec3 postQ = floor (preQ + patternShift);							\n"
-"	outColor = vec4 (postQ * depth.y, 1.0);								\n"
-"}																		\n";
+R"(#version 300 es
+precision %s float;
+
+uniform sampler2D video;
+uniform sampler2D dither;
+uniform vec2 depth;
+uniform vec2 resize;
+uniform vec3 offset;
+in vec2 coord;
+out vec4 outColor;
+
+void main () {
+	vec3 pattern = texture (dither, coord * resize + offset.xy).rgb - 0.5;
+	pattern = (offset.z == 0.0) ? pattern.rrr : ((offset.z == 1.0) ? pattern.ggg : pattern.bbb);
+	pattern.g = -pattern.g;
+	vec3 preQ = texture (video, coord).rgb * depth.x;
+	vec3 postQ = round (preQ + pattern * 2.0);
+	outColor = vec4 (postQ * depth.y, 1.0);
+})";

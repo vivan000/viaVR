@@ -714,9 +714,10 @@ void videoRenderer::render () {
 			glViewport (0, 0, info->targetWidth, info->targetHeight);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 			glUseProgram (renderDitherSP);
-			glUniform2f (ditherOffset,
+			glUniform3f (ditherOffset,
 				(float) ((rand() % 32) / 32.0),
-				(float) ((rand() % 32) / 32.0));
+				(float) ((rand() % 32) / 32.0),
+				(float) (rand() % 3));
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 			glFlush ();

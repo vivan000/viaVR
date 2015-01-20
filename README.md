@@ -7,12 +7,14 @@ Advanced video renderer for Android.
 - input support for common video formats (4:2:0, 4:2:2, 4:4:4 at 8, 10 and 16 bits).
 - high bit-depth processing.
 - proper color conversion (BT.709 support, correct chroma location, etc.).
+- bilinear scaling and chroma upsampling
+- high quality dithering (dynamic ordered)
 - native code (C++).
 - full GPU acceleration (OpenGL ES 3.0).
 
 ### 1.0 goals:
+- high quality chroma upsampling
 - high quality scaling.
-- high quality dithering.
 - subtitle consumer.
 - support for custom shaders.
 - OSD (stats).

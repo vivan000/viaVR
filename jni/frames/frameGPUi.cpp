@@ -40,8 +40,8 @@ frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) {
 			format = GL_FLOAT;
 			break;
 		case pFormat::DITHER:
-			internalFormat = GL_RGBA8;
-			format = GL_UNSIGNED_BYTE;
+			internalFormat = GL_RGB10_A2;
+			format = GL_UNSIGNED_INT_2_10_10_10_REV;
 			repeat = true;
 			break;
 	}

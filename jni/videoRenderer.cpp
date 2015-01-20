@@ -250,6 +250,8 @@ bool videoRenderer::checkExtensions () {
 	if (extWriteOnly)
 		glEnable (0x8823); // WRITEONLY_RENDERING_QCOM
 
+	glDisable (GL_DITHER);
+
 	LOGD ("Extensions:");
 	LOGD ("Target texture: %i, target processing: %s", precisionTex, precisionHighp ? "highp" : "mediump");
 	LOGD ("Half-float texture: %s", extColorHalfFloat ? "supported" : "not supported");
@@ -488,7 +490,7 @@ void videoRenderer::render () {
 		#include "shaders/displayVert.h"
 
 	frameGPUi** internal = new frameGPUi*[8];
-	pFormat internalType = pFormat::INT10;
+	pFormat internalType = pFormat::FLOAT32;
 	const char* precision = "highp";
 	int internalCount = 0;
 
@@ -609,21 +611,22 @@ void videoRenderer::render () {
 
 	// dither
 	srand (time(NULL));
-	int ditherSizeX = 32;
-	int ditherSizeY = 32;
-	unsigned int* d = new unsigned int[ditherSizeX * ditherSizeY];
-	for (int y = 0; y < ditherSizeY; ++y)
-		for (int x = 0; x < ditherSizeX; ++x)
-			d[ditherSizeX * y + x] = (rand() % 256 << 0) | (rand() % 256 << 8) | (rand() % 256 << 16) | (0xFF << 24);
 
-	frameGPUi dither (ditherSizeX, ditherSizeY, pFormat::DITHER, info);
+	#include "ditherMatrix.h"
+	unsigned int* d = new unsigned int[32 * 32];
+	for (int i = 0; i < 32 * 32; i++) {
+		d[i] = ditherMatrixR[i] << 0 | ditherMatrixG[i] << 10 | ditherMatrixB[i] << 20 | 0 << 30;
+	}
+
+	frameGPUi dither (32, 32, pFormat::DITHER, info);
 	glActiveTexture (GL_TEXTURE0 + 3);
 	glBindTexture (GL_TEXTURE_2D, dither.plane);
-	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, ditherSizeX, ditherSizeY, GL_RGBA, GL_UNSIGNED_BYTE, (GLvoid*) d);
+	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) d);
 	glActiveTexture (GL_TEXTURE0);
 
 	delete[] d;
 
+	GLint ditherOffset;
 	GLuint renderDitherSP = 0; {
 		const char* renderDitherFP =
 			#include "shaders/dither.h"
@@ -640,8 +643,9 @@ void videoRenderer::render () {
 			(float) (pow (2.0, bitdepth) - 1.0),
 			(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
 		glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
-			(float) ((double) info->targetWidth / ditherSizeX),
-			(float) ((double) info->targetHeight / ditherSizeY));
+			(float) ((double) info->targetWidth / 32.0),
+			(float) ((double) info->targetHeight / 32.0));
+		ditherOffset = glGetUniformLocation (renderDitherSP, "offset");
 
 		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType, info);
 	}
@@ -717,6 +721,9 @@ void videoRenderer::render () {
 			glViewport (0, 0, info->targetWidth, info->targetHeight);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
 			glUseProgram (renderDitherSP);
+			glUniform2f (ditherOffset,
+				(float) ((rand() % 32) / 32.0),
+				(float) ((rand() % 32) / 32.0));
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 			glFlush ();

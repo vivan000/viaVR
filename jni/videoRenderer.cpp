@@ -467,6 +467,7 @@ void videoRenderer::upload () {
 
 void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
+	srand (time (NULL));
 
 	// create FBO
 	GLuint framebuffer;
@@ -610,24 +611,16 @@ void videoRenderer::render () {
 	}
 
 	// dither
-	srand (time(NULL));
-
-	#include "ditherMatrix.h"
-	unsigned int* d = new unsigned int[32 * 32];
-	for (int i = 0; i < 32 * 32; i++) {
-		d[i] = ditherMatrixR[i] << 0 | ditherMatrixG[i] << 10 | ditherMatrixB[i] << 20 | 0 << 30;
-	}
-
 	frameGPUi dither (32, 32, pFormat::DITHER, info);
-	glActiveTexture (GL_TEXTURE0 + 3);
-	glBindTexture (GL_TEXTURE_2D, dither.plane);
-	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) d);
-	glActiveTexture (GL_TEXTURE0);
-
-	delete[] d;
-
 	GLint ditherOffset;
 	GLuint renderDitherSP = 0; {
+		#include "ditherMatrix.h"
+
+		glActiveTexture (GL_TEXTURE0 + 3);
+		glBindTexture (GL_TEXTURE_2D, dither.plane);
+		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);
+		glActiveTexture (GL_TEXTURE0);
+
 		const char* renderDitherFP =
 			#include "shaders/dither.h"
 

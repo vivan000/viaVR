@@ -29,7 +29,7 @@ enum class pFormat {
 	INT10,		// normalized 10-bit integer rgba (RGB10_A2)
 	FLOAT16,	// half float rgba (RGBA16F)
 	FLOAT32,	// full float rgba (RGBA32F)
-	DITHER,		// INT8 + repeat texture
+	DITHER,		// INT10 + repeat texture
 
 	// 8-bit planar
 	P008 = FOURCC ('I', '4', '2', '0'), //  8 bit 4:2:0

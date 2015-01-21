@@ -17,21 +17,21 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-"#version 300 es														\n"
-"precision %s float;													\n"
-"																		\n"
-"uniform	sampler2D	YCbCr;											\n"
-"uniform	vec4		pitch;											\n"
-"in			vec2		coord;											\n"
-"out		vec4		outColor;										\n"
-"																		\n"
-"void main () {															\n"
-"	float c = round (coord.y * pitch.a) * pitch.r + pitch.b;			\n"
-"	outColor = vec4 (													\n"
-"		0.0,															\n"
-"		mix (															\n"
-"			texture (YCbCr, vec2 (coord.x, c + pitch.g)).gb,			\n"
-"			texture (YCbCr, vec2 (coord.x, c          )).gb,			\n"
-"			fract (coord.y * pitch.a)),									\n"
-"		0.0);															\n"
-"}																		\n";
+R"(#version 300 es
+precision %s float;
+
+uniform sampler2D YCbCr;
+uniform vec4 pitch;
+in vec2 coord;
+out vec4 outColor;
+
+void main () {
+	float c = round (coord.y * pitch.a) * pitch.r + pitch.b;
+	outColor = vec4 (
+		0.0,
+		mix (
+			texture (YCbCr, vec2 (coord.x, c + pitch.g)).gb,
+			texture (YCbCr, vec2 (coord.x, c)).gb,
+			fract (coord.y * pitch.a)),
+		0.0);
+})";

@@ -17,32 +17,32 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-"#version 300 es														\n"
-"precision %s float;													\n"
-"%s																		\n"
-"																		\n"
-"uniform	sampler2D	Y;												\n"
-"uniform	sampler2D	Cb;												\n"
-"uniform	sampler2D	Cr;												\n"
-"#ifdef HWCHROMA														\n"
-"uniform	float		pitch;											\n"
-"#endif																	\n"
-"in			vec2		coord;											\n"
-"out		vec4		outColor;										\n"
-"																				\n"
-"void main () {																	\n"
-"#ifdef HWCHROMA																\n"
-"	vec2 newCoord = coord + vec2 (pitch, 0.0);									\n"
-"	outColor = vec4 (															\n"
-"		mix (texture (Y, coord).r, texture (Y, coord).g, 256.0 / 257.0),		\n"
-"		mix (texture (Cb, newCoord).r, texture (Cb, newCoord).g, 256.0 / 257.0),\n"
-"		mix (texture (Cr, newCoord).r, texture (Cr, newCoord).g, 256.0 / 257.0),\n"
-"		1.0);																	\n"
-"#else																			\n"
-"	outColor = vec4 (															\n"
-"		mix (texture (Y, coord).r, texture (Y, coord).g, 256.0 / 257.0),		\n"
-"		mix (texture (Cb, coord).r, texture (Cb, coord).g, 256.0 / 257.0),		\n"
-"		mix (texture (Cr, coord).r, texture (Cr, coord).g, 256.0 / 257.0),		\n"
-"		1.0);																	\n"
-"#endif																			\n"
-"}																				\n";
+R"(#version 300 es
+precision %s float;
+%s
+
+uniform sampler2D Y;
+uniform sampler2D Cb;
+uniform sampler2D Cr;
+#ifdef HWCHROMA
+uniform float pitch;
+#endif
+in vec2 coord;
+out vec4 outColor;
+
+void main () {
+#ifdef HWCHROMA
+	vec2 newCoord = coord + vec2 (pitch, 0.0);
+	outColor = vec4 (
+		mix (texture (Y, coord).r, texture (Y, coord).g, 256.0 / 257.0),
+		mix (texture (Cb, newCoord).r, texture (Cb, newCoord).g, 256.0 / 257.0),
+		mix (texture (Cr, newCoord).r, texture (Cr, newCoord).g, 256.0 / 257.0),
+		1.0);
+#else
+	outColor = vec4 (
+		mix (texture (Y, coord).r, texture (Y, coord).g, 256.0 / 257.0),
+		mix (texture (Cb, coord).r, texture (Cb, coord).g, 256.0 / 257.0),
+		mix (texture (Cr, coord).r, texture (Cr, coord).g, 256.0 / 257.0),
+		1.0);
+#endif
+})";

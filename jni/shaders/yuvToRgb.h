@@ -17,15 +17,15 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-"#version 300 es																\n"
-"precision %s float;															\n"
-"																				\n"
-"uniform	sampler2D	video;													\n"
-"uniform	mat3		conversion;												\n"
-"uniform	vec3		offset;													\n"
-"in			vec2		coord;													\n"
-"out		vec4		outColor;												\n"
-"																				\n"
-"void main () {																	\n"
-"    outColor = vec4 (texture (video, coord).rgb * conversion + offset, 1.0);	\n"
-"}																				\n";
+R"(#version 300 es
+precision %s float;
+
+uniform sampler2D video;
+uniform mat3 conversion;
+uniform vec3 offset;
+in vec2 coord;
+out vec4 outColor;
+
+void main () {
+	outColor = vec4 (texture (video, coord).rgb * conversion + offset, 1.0);
+})";

@@ -19,7 +19,3 @@ Advanced video renderer for Android.
 - support for custom shaders.
 - OSD (stats).
 - settings.
-
-### System requirements:
-- OpenGL ES 3.0.
-- a lot of free RAM.

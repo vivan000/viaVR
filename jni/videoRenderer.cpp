@@ -31,10 +31,6 @@ videoRenderer::videoRenderer () {
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
 	glClear (GL_COLOR_BUFFER_BIT);
 	initialized = false;
-
-	presentedFrames = 0;
-	repeat = 0;
-	frameNumber = 0;
 }
 
 videoRenderer::~videoRenderer () {
@@ -243,13 +239,13 @@ bool videoRenderer::checkExtensions () {
 	// float texture is target and not supported
 	if ((precisionTex == 2) && !extColorFloat)
 		return false;
-
+/*
 	if (extBinningControl)
 		glHint (0x8FB0, 0x8FB3); // BINNING_CONTROL_HINT_QCOM, RENDER_DIRECT_TO_FRAMEBUFFER_QCOM
 
 	if (extWriteOnly)
 		glEnable (0x8823); // WRITEONLY_RENDERING_QCOM
-
+*/
 	glDisable (GL_DITHER);
 
 	LOGD ("Extensions:");
@@ -397,12 +393,39 @@ void videoRenderer::getNextFrame (frameGPUo* f) {
 
 void videoRenderer::play (int timecode) {
 	start = nanotime () - (int64_t) timecode * 1000000LL;
+	presentedFrames = 0;
+	repeat = 0;
+	frameNumber = 0;
 	playing = true;
 }
 
 void videoRenderer::pause () {
-	start = 0;
 	playing = false;
+}
+
+void videoRenderer::flush () {
+	if (initialized) {
+		// stop everything
+		decoding = false;
+		uploading = false;
+		rendering = false;
+		playing = false;
+
+		decodeThread.join ();
+		uploadThread.join ();
+		renderThread.join ();
+
+		// flush queues
+		decodeQueue->flush();
+		uploadQueue->flush();
+		renderQueue->flush();
+
+		// restart threads
+		decodeThread = std::thread (&videoRenderer::decode, this);
+		uploadThread = std::thread (&videoRenderer::upload, this);
+		renderThread = std::thread (&videoRenderer::render, this);
+	}
+
 }
 
 void videoRenderer::decode () {
@@ -414,10 +437,17 @@ void videoRenderer::decode () {
 		if (!decodeQueue->isFull ()) {
 			t.timecode = video->getNextVideoframe (t.plane, size);
 
-			if (t.timecode != -1) {
-				decodeQueue->push (t);
-			} else {
-				decoding = false;
+			switch (t.timecode) {
+				case -1:
+					// stop playback
+					decoding = false;
+					break;
+				case -2:
+					// try later
+					usleep (10000);
+					break;
+				default:
+					decodeQueue->push (t);
 			}
 		} else {
 			usleep (10000);

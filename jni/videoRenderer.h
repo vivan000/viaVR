@@ -35,10 +35,10 @@ public:
 	void drawFrame ();
 	void play (int timecode);
 	void pause ();
+	void flush ();
 
 	// void setMode ();
 	// void setSubtitleDecoder ();
-	// void flush ();
 	const char* getName ();
 	int getMajorVersion ();
 	int getMinorVersion ();

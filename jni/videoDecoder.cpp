@@ -176,5 +176,5 @@ int videoDecoder::getFourCC () {
 }
 
 int videoDecoder::getCurrentTimecode () {
-	return decoderCount++ * 1000 * fpsDenominator / fpsNumerator;
+	return decoderCount * 1000 * fpsDenominator / fpsNumerator;
 }

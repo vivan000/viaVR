@@ -94,8 +94,8 @@ bool videoRenderer::addVideoDecoder (videoDecoder* video) {
 	LOGD ("Video %ix%i (%i:%i)", info->width, info->height, videoSarWidth, videoSarHeight);
 	LOGD ("FourCC: %c%c%c%c", reinterpret_cast <char*> (&info->fourCC)[0], reinterpret_cast <char*> (&info->fourCC)[1],
 		reinterpret_cast <char*> (&info->fourCC)[2], reinterpret_cast <char*> (&info->fourCC)[3]);
-	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", (int) info->matrix == video->getMatrix () ? "upstream" : "guess");
-	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", (int) info->range == video->getRange () ? "upstream" : "guess");
+	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", video->getMatrix () != 0 ? "upstream" : "guess");
+	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", video->getRange () != 0 ? "upstream" : "guess");
 	LOGD ("Framerate: %i/%i", video->getFpsNumerator (), video->getFpsDenominator ());
 
 	info->hwChroma = false;
@@ -114,6 +114,13 @@ void videoRenderer::setRefreshRate (int fps) {
 }
 
 bool videoRenderer::init () {
+	// check version
+	GLint GLversion = 0;
+	glGetIntegerv (GL_MAJOR_VERSION, &GLversion);
+	if (GLversion < 3)
+		return false;
+	LOGD ("Version: OK");
+
 	genContexts ();
 	setAspect ();
 
@@ -205,32 +212,32 @@ bool videoRenderer::init () {
 }
 
 bool videoRenderer::checkExtensions () {
-	std::string ext ((const char*) glGetString (GL_EXTENSIONS));
+	GLint numExtensions;
 	std::vector<std::string> extList;
 
-	int s = 0;
-	int e;
-	for (e = 0; ext[e] != 0; e++) {
-		if (ext[e] == ' ') {
-			extList.push_back (ext.substr (s, e - s));
-			s = e + 1;
-		}
-	}
-	extList.push_back (ext.substr (s, e - s));
+	glGetIntegerv (GL_NUM_EXTENSIONS, &numExtensions);
+	for (int i = 0; i < numExtensions; i++)
+		extList.push_back ((const char*) glGetStringi (GL_EXTENSIONS, i));
 
 	bool extColorHalfFloat = false;
 	bool extColorFloat = false;
+	bool extHalfFloatLinear = false;
+	bool extFloatLinear = false;
 	bool extBinningControl = false;
 	bool extWriteOnly = false;
 
 	for (unsigned int i = 0; i < extList.size (); i++) {
-		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float"))
+		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float") && !extColorHalfFloat)
 			extColorHalfFloat = true;
-		if (!extList.at (i).compare ("GL_EXT_color_buffer_float"))
+		if (!extList.at (i).compare ("GL_EXT_color_buffer_float") && !extColorFloat)
 			extColorFloat = true;
-		if (!extList.at (i).compare ("GL_QCOM_binning_control"))
+		if (!extList.at (i).compare ("GL_OES_texture_half_float_linear") && !extHalfFloatLinear)
+			extHalfFloatLinear = true;
+		if (!extList.at (i).compare ("GL_OES_texture_float_linear") && !extFloatLinear)
+			extFloatLinear = true;
+		if (!extList.at (i).compare ("GL_QCOM_binning_control") && !extBinningControl)
 			extBinningControl = true;
-		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering"))
+		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering") && !extWriteOnly)
 			extWriteOnly = true;
 	}
 
@@ -252,8 +259,12 @@ bool videoRenderer::checkExtensions () {
 
 	LOGD ("Extensions:");
 	LOGD ("Target texture: %i, target processing: %s", precisionTex, precisionHighp ? "highp" : "mediump");
-	LOGD ("Half-float texture: %s", extColorHalfFloat ? "supported" : "not supported");
-	LOGD ("Float texture: %s", extColorFloat ? "supported" : "not supported");
+	LOGD ("Half-float texture: %s, bilinear: %s",
+		extColorHalfFloat ? "supported" : "not supported",
+		extHalfFloatLinear  ? "supported" : "not supported");
+	LOGD ("Float texture: %s, bilinear: %s",
+		extColorFloat ? "supported" : "not supported",
+		extFloatLinear  ? "supported" : "not supported");
 	LOGD ("Binning control: %s", extBinningControl ? "supported" : "not supported");
 	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 	return true;

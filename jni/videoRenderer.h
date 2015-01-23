@@ -51,6 +51,7 @@ private:
 
 	void setAspect ();
 	void genContexts ();
+	void delContexts ();
 
 	void presentFrame (frameGPUo* f);
 	void getNextFrame (frameGPUo* f);

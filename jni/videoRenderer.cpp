@@ -49,6 +49,8 @@ videoRenderer::~videoRenderer () {
 		delete renderQueue;
 
 		delete displayCurr;
+
+		delContexts ();
 	}
 
 	delete info;
@@ -326,6 +328,16 @@ void videoRenderer::genContexts () {
 	renderPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
 }
 
+void videoRenderer::delContexts () {
+	eglDestroySurface (display, uploadPBuffer);
+	eglDestroySurface (display, uploadPBuffer2);
+	eglDestroyContext (display, uploadContext);
+
+	eglDestroySurface (display, renderPBuffer);
+	eglDestroySurface (display, renderPBuffer2);
+	eglDestroyContext (display, renderContext);
+}
+
 void videoRenderer::drawFrame () {
 	glFinish ();
 	glClear (GL_COLOR_BUFFER_BIT);
@@ -493,6 +505,8 @@ void videoRenderer::upload () {
 			usleep (10000);
 		}
 	}
+
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void videoRenderer::render () {
@@ -765,6 +779,7 @@ void videoRenderer::render () {
 	delete[] internal;
 
 	glDeleteFramebuffers (1, &framebuffer);
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void videoRenderer::getGlError () {

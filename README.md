@@ -1,5 +1,5 @@
 ## viaVR ##
-Advanced video renderer for Android.
+Advanced video renderer for Android. [Overview](https://github.com/vivan000/viaVR/wiki/Why-it's-important-to-use-high-quality-video-renderer).
 
 ### Goals for initial release:
 - large buffers to ensure smooth playback.

@@ -13,7 +13,7 @@ videoDecoder::videoDecoder () {
 	matrix = 1;
 	decoderCount = 0;
 
-	int mode = 3;
+	int mode = 2;
 
 	switch (mode) {
 		case 1:
@@ -56,9 +56,9 @@ videoDecoder::videoDecoder () {
 			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
 			for (int y = 0; y < info->height; ++y)
 				for (int x = 0; x < info->width; ++x) {
-					dataR[width * y + x] = 128;
-					dataG[width * y + x] = x * 255 / (info->width - 1);
-					dataB[width * y + x] = 255 - (y * 255 / (info->height - 1));
+					dataR[width * y + x] = x * 255 / (info->width + y - 1) / 8 * 8;
+					dataG[width * y + x] = 128; // x * 255 / (info->width - 1);
+					dataB[width * y + x] = 128; // 255 - (y * 255 / (info->height - 1);
 				}
 			break;
 		case 3:

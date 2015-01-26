@@ -98,10 +98,10 @@ bool videoRenderer::addVideoDecoder (videoDecoder* video) {
 	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", video->getRange () != 0 ? "upstream" : "guess");
 	LOGD ("Framerate: %i/%i", video->getFpsNumerator (), video->getFpsDenominator ());
 
-	info->hwChroma = false;
-	info->hwChromaLinear = false;
-	info->hwScale = false;
-	info->hwScaleLinear = false;
+	info->hwChroma = true;
+	info->hwChromaLinear = true;
+	info->hwScale = true;
+	info->hwScaleLinear = true;
 
 	return true;
 }
@@ -546,7 +546,7 @@ void videoRenderer::render () {
 		#include "shaders/displayVert.h"
 
 	frameGPUi** internal = new frameGPUi*[8];
-	pFormat internalType = pFormat::FLOAT32;
+	pFormat internalType = pFormat::INT10;
 	const char* precision = "highp";
 	int internalCount = 0;
 
@@ -623,6 +623,68 @@ void videoRenderer::render () {
 
 		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
 	}
+
+	// debanding
+	bool debanding = true;
+	const int blurTaps = 8;
+	const GLfloat blurWeight[] = {
+		0.1224861083, 0.1442657978, 0.1071137622, 0.0670849391,
+		0.0354400766, 0.0157922278, 0.0059355087, 0.0018815795};
+	const GLfloat blurOffsetX[] = {
+		(float)  0.6618719722 / info->width, (float)  2.4731512961 / info->width,
+		(float)  4.4517761716 / info->width, (float)  6.4305774995 / info->width,
+		(float)  8.4096302933 / info->width, (float) 10.3890059682 / info->width,
+		(float) 12.3687714143 / info->width, (float) 14.3489882016 / info->width};
+	const GLfloat blurOffsetY[] = {
+		(float)  0.6618719722 / info->height, (float)  2.4731512961 / info->height,
+		(float)  4.4517761716 / info->height, (float)  6.4305774995 / info->height,
+		(float)  8.4096302933 / info->height, (float) 10.3890059682 / info->height,
+		(float) 12.3687714143 / info->height, (float) 14.3489882016 / info->height};
+
+	GLuint renderBlurXSP = 0;
+	GLuint renderBlurYSP = 0;
+	GLuint renderDebandSP = 0;
+	if (debanding) {
+		const char* renderBlurXFP =
+			#include "shaders/blurX.h"
+
+		shader renderBlurXShader (renderVP, renderBlurXFP, precision, blurTaps);
+		renderBlurXSP = renderBlurXShader.loadProgram ();
+
+		glUseProgram (renderBlurXSP);
+		glUniform1i  (glGetUniformLocation (renderBlurXSP, "video"), 0);
+		glUniform1fv (glGetUniformLocation (renderBlurXSP, "weight"), blurTaps, blurWeight);
+		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
+
+		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+
+		const char* renderBlurYFP =
+			#include "shaders/blurY.h"
+
+		shader renderBlurYShader (renderVP, renderBlurYFP, precision, blurTaps);
+		renderBlurYSP = renderBlurYShader.loadProgram ();
+
+		glUseProgram (renderBlurYSP);
+		glUniform1i  (glGetUniformLocation (renderBlurYSP, "video"), 0);
+		glUniform1fv (glGetUniformLocation (renderBlurYSP, "weight"), blurTaps, blurWeight);
+		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
+
+		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+
+		const char* renderDebandFP =
+			#include "shaders/deband.h"
+
+		shader renderDebandShader (renderVP, renderDebandFP, precision);
+		renderDebandSP = renderDebandShader.loadProgram ();
+
+		glUseProgram (renderDebandSP);
+		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
+		glUniform1i (glGetUniformLocation (renderDebandSP, "blur"), 1);
+		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
+			(float) (32.0 / 256.0), (float) (32.0 / 256.0), (float) (32.0 / 256.0));
+
+		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+}
 
 	// convert YCbCr -> RGB
 	GLuint renderYuvToRgbSP = 0;
@@ -739,6 +801,26 @@ void videoRenderer::render () {
 			if (render422to444SP) {
 				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
 				glUseProgram (render422to444SP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+			}
+
+			if (renderBlurXSP && renderBlurYSP && renderDebandSP) {
+				// render blurred frame to texture 1
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
+				glUseProgram (renderBlurXSP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glActiveTexture (GL_TEXTURE0 + 1);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
+				glUseProgram (renderBlurYSP);
+				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+				glActiveTexture (GL_TEXTURE0);
+
+				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
+				glUseProgram (renderDebandSP);
 				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
 			}

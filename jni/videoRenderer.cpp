@@ -628,18 +628,18 @@ void videoRenderer::render () {
 	bool debanding = true;
 	const int blurTaps = 8;
 	const GLfloat blurWeight[] = {
-		0.1224861083, 0.1442657978, 0.1071137622, 0.0670849391,
-		0.0354400766, 0.0157922278, 0.0059355087, 0.0018815795};
+		0.0524084089, 0.0694552266, 0.0684512453, 0.0669028010,
+		0.0648475801, 0.0623346857, 0.0594226890, 0.0561773634};
 	const GLfloat blurOffsetX[] = {
-		(float)  0.6618719722 / info->width, (float)  2.4731512961 / info->width,
-		(float)  4.4517761716 / info->width, (float)  6.4305774995 / info->width,
-		(float)  8.4096302933 / info->width, (float) 10.3890059682 / info->width,
-		(float) 12.3687714143 / info->width, (float) 14.3489882016 / info->width};
+		(float)  0.6664353860 / info->width, (float)  2.4986992745 / info->width,
+		(float)  4.4976587060 / info->width, (float)  6.4966181577 / info->width,
+		(float)  8.4955776387 / info->width, (float) 10.4945371581 / info->width,
+		(float) 12.4934967247 / info->width, (float) 14.4924563477 / info->width};
 	const GLfloat blurOffsetY[] = {
-		(float)  0.6618719722 / info->height, (float)  2.4731512961 / info->height,
-		(float)  4.4517761716 / info->height, (float)  6.4305774995 / info->height,
-		(float)  8.4096302933 / info->height, (float) 10.3890059682 / info->height,
-		(float) 12.3687714143 / info->height, (float) 14.3489882016 / info->height};
+		(float)  0.6664353860 / info->width, (float)  2.4986992745 / info->width,
+		(float)  4.4976587060 / info->width, (float)  6.4966181577 / info->width,
+		(float)  8.4955776387 / info->width, (float) 10.4945371581 / info->width,
+		(float) 12.4934967247 / info->width, (float) 14.4924563477 / info->width};
 
 	GLuint renderBlurXSP = 0;
 	GLuint renderBlurYSP = 0;
@@ -681,7 +681,7 @@ void videoRenderer::render () {
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "blur"), 1);
 		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
-			(float) (32.0 / 256.0), (float) (32.0 / 256.0), (float) (32.0 / 256.0));
+			(float) (16.0 / 256.0), (float) (16.0 / 256.0), (float) (16.0 / 256.0));
 
 		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
 }

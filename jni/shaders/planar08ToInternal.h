@@ -38,5 +38,5 @@ void main () {
 #else
 	outColor = vec4 (texture (Y, coord).r, texture (Cb, coord).r,
 		texture (Cr, coord).r, 1.0);
-endif
+#endif
 })";

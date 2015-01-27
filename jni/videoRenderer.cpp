@@ -626,25 +626,27 @@ void videoRenderer::render () {
 
 	// debanding
 	bool debanding = true;
-	const int blurTaps = 8;
-	const GLfloat blurWeight[] = {
-		0.0524084089, 0.0694552266, 0.0684512453, 0.0669028010,
-		0.0648475801, 0.0623346857, 0.0594226890, 0.0561773634};
-	const GLfloat blurOffsetX[] = {
-		(float)  0.6664353860 / info->width, (float)  2.4986992745 / info->width,
-		(float)  4.4976587060 / info->width, (float)  6.4966181577 / info->width,
-		(float)  8.4955776387 / info->width, (float) 10.4945371581 / info->width,
-		(float) 12.4934967247 / info->width, (float) 14.4924563477 / info->width};
-	const GLfloat blurOffsetY[] = {
-		(float)  0.6664353860 / info->width, (float)  2.4986992745 / info->width,
-		(float)  4.4976587060 / info->width, (float)  6.4966181577 / info->width,
-		(float)  8.4955776387 / info->width, (float) 10.4945371581 / info->width,
-		(float) 12.4934967247 / info->width, (float) 14.4924563477 / info->width};
+	const double debandThreshold = 16.0;
 
 	GLuint renderBlurXSP = 0;
 	GLuint renderBlurYSP = 0;
 	GLuint renderDebandSP = 0;
 	if (debanding) {
+		const GLfloat blurWeight[] = {
+			0.0524084089, 0.0694552266, 0.0684512453, 0.0669028010,
+			0.0648475801, 0.0623346857, 0.0594226890, 0.0561773634};
+		const GLfloat blurOffsetX[] = {
+			(float)  0.6664353860 / info->width, (float)  2.4986992745 / info->width,
+			(float)  4.4976587060 / info->width, (float)  6.4966181577 / info->width,
+			(float)  8.4955776387 / info->width, (float) 10.4945371581 / info->width,
+			(float) 12.4934967247 / info->width, (float) 14.4924563477 / info->width};
+		const GLfloat blurOffsetY[] = {
+			(float)  0.6664353860 / info->height, (float)  2.4986992745 / info->height,
+			(float)  4.4976587060 / info->height, (float)  6.4966181577 / info->height,
+			(float)  8.4955776387 / info->height, (float) 10.4945371581 / info->height,
+			(float) 12.4934967247 / info->height, (float) 14.4924563477 / info->height};
+		const int blurTaps = sizeof (blurWeight) / sizeof (*blurWeight);
+
 		const char* renderBlurXFP =
 			#include "shaders/blurX.h"
 
@@ -681,7 +683,7 @@ void videoRenderer::render () {
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "blur"), 1);
 		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
-			(float) (16.0 / 256.0), (float) (16.0 / 256.0), (float) (16.0 / 256.0));
+			(float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0));
 
 		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
 }

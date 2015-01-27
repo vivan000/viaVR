@@ -31,37 +31,10 @@ out vec4 outColor;
 void main () {
 	vec3 sum = vec3 (0.0);
 
-	sum += texture (video, vec2 (coord.x, coord.y - offset[0])).rgb * weight[0];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[0])).rgb * weight[0];
-
-#if taps>1
-	sum += texture (video, vec2 (coord.x, coord.y - offset[1])).rgb * weight[1];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[1])).rgb * weight[1];
-#endif
-#if taps>2
-	sum += texture (video, vec2 (coord.x, coord.y - offset[2])).rgb * weight[2];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[2])).rgb * weight[2];
-#endif
-#if taps>3
-	sum += texture (video, vec2 (coord.x, coord.y - offset[3])).rgb * weight[3];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[3])).rgb * weight[3];
-#endif
-#if taps>4
-	sum += texture (video, vec2 (coord.x, coord.y - offset[4])).rgb * weight[4];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[4])).rgb * weight[4];
-#endif
-#if taps>5
-	sum += texture (video, vec2 (coord.x, coord.y - offset[5])).rgb * weight[5];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[5])).rgb * weight[5];
-#endif
-#if taps>6
-	sum += texture (video, vec2 (coord.x, coord.y - offset[6])).rgb * weight[6];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[6])).rgb * weight[6];
-#endif
-#if taps>7
-	sum += texture (video, vec2 (coord.x, coord.y - offset[7])).rgb * weight[7];
-	sum += texture (video, vec2 (coord.x, coord.y + offset[7])).rgb * weight[7];
-#endif
+	for (int i = 0; i < taps; i++) {
+		sum += texture (video, vec2 (coord.x, coord.y - offset[i])).rgb * weight[i];
+		sum += texture (video, vec2 (coord.x, coord.y + offset[i])).rgb * weight[i];
+	}
 
 	outColor = vec4 (sum, 1.0);
 })";

@@ -20,9 +20,13 @@
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
 #include <thread>
+#include <vector>
 #include "frames.h"
 #include "queue.h"
 #include "videoDecoder.h"
+#include "renderingPass.h"
+
+typedef std::vector<renderingPass*> rPass;
 
 class videoRenderer {
 public:
@@ -60,8 +64,7 @@ private:
 	void decode ();
 	void render ();
 
-	void renderPass (frameGPUi* frame, GLuint program, int target);
-
+	void renderInit ();
 	void getGlError ();
 	void getFbStatus ();
 
@@ -106,4 +109,9 @@ private:
 	int hardLate, softLate, softEarly, hardEarly;
 
 	GLuint vboIds[3];
+
+	rPass pass;
+	pFormat internalType;
+	const char* precision = "highp";
+	int bitdepth;
 };

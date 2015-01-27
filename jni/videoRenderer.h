@@ -60,6 +60,8 @@ private:
 	void decode ();
 	void render ();
 
+	void renderPass (frameGPUi* frame, GLuint program, int target);
+
 	void getGlError ();
 	void getFbStatus ();
 

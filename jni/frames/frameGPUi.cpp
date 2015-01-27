@@ -19,7 +19,7 @@
 
 #include "frames.h"
 
-frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) {
+frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) : width (w), height (h) {
 	GLenum internalFormat, format;
 	bool repeat = false;
 	switch (type) {

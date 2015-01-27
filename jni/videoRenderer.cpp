@@ -545,10 +545,10 @@ void videoRenderer::render () {
 	const char* renderVP =
 		#include "shaders/displayVert.h"
 
-	frameGPUi** internal = new frameGPUi*[8];
+	std::vector<frameGPUi*> internal;
+
 	pFormat internalType = pFormat::INT10;
 	const char* precision = "highp";
-	int internalCount = 0;
 
 	// convert to internal format
 	GLuint renderToInternalSP = 0;
@@ -586,7 +586,7 @@ void videoRenderer::render () {
 			break;
 		}
 	}
-	internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+	internal.push_back (new frameGPUi (info->width, info->height, internalType, info));
 
 	// convert 4:2:0 -> 4:2:2
 	GLuint render420to422SP = 0;
@@ -603,7 +603,7 @@ void videoRenderer::render () {
 			(float) ( 2.0 / info->height), (float) (1.0 / info->height),
 			(float) (-0.5 / info->height), (float) (0.5 * info->height));
 
-		internal[internalCount++] = new frameGPUi (info->chromaWidth, info->height, internalType, info);
+		internal.push_back (new frameGPUi (info->chromaWidth, info->height, internalType, info));
 	}
 
 	// convert 4:2:2 -> 4:4:4
@@ -621,7 +621,7 @@ void videoRenderer::render () {
 			glUniform1i (glGetUniformLocation (render422to444SP, "CbCr"), 1);
 		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
 
-		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+		internal.push_back (new frameGPUi (info->width, info->height, internalType, info));
 	}
 
 	// debanding
@@ -658,7 +658,7 @@ void videoRenderer::render () {
 		glUniform1fv (glGetUniformLocation (renderBlurXSP, "weight"), blurTaps, blurWeight);
 		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
 
-		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+		internal.push_back (new frameGPUi (info->width, info->height, internalType, info));
 
 		const char* renderBlurYFP =
 			#include "shaders/blurY.h"
@@ -667,11 +667,11 @@ void videoRenderer::render () {
 		renderBlurYSP = renderBlurYShader.loadProgram ();
 
 		glUseProgram (renderBlurYSP);
-		glUniform1i  (glGetUniformLocation (renderBlurYSP, "video"), 0);
+		glUniform1i  (glGetUniformLocation (renderBlurYSP, "video"), 1);
 		glUniform1fv (glGetUniformLocation (renderBlurYSP, "weight"), blurTaps, blurWeight);
 		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
 
-		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+		internal.push_back (new frameGPUi (info->width, info->height, internalType, info));
 
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
@@ -685,7 +685,7 @@ void videoRenderer::render () {
 		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
 			(float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0));
 
-		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+		internal.push_back (new frameGPUi (info->width, info->height, internalType, info));
 }
 
 	// convert YCbCr -> RGB
@@ -702,7 +702,7 @@ void videoRenderer::render () {
 		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "conversion"), 1, GL_FALSE, info->colorConversion);
 		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
 
-		internal[internalCount++] = new frameGPUi (info->width, info->height, internalType, info);
+		internal.push_back (new frameGPUi (info->width, info->height, internalType, info));
 	}
 
 	// scale height
@@ -714,7 +714,7 @@ void videoRenderer::render () {
 
 		}
 
-		internal[internalCount++] = new frameGPUi (info->width, info->targetHeight, internalType, info);
+		internal.push_back (new frameGPUi (info->width, info->targetHeight, internalType, info));
 	}
 
 	// scale width
@@ -726,7 +726,7 @@ void videoRenderer::render () {
 
 		}
 
-		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType, info);
+		internal.push_back (new frameGPUi (info->targetWidth, info->targetHeight, internalType, info));
 	}
 
 	// dither
@@ -759,7 +759,7 @@ void videoRenderer::render () {
 			(float) ((double) info->targetHeight / 32.0));
 		ditherOffset = glGetUniformLocation (renderDitherSP, "offset");
 
-		internal[internalCount++] = new frameGPUi (info->targetWidth, info->targetHeight, internalType, info);
+		internal.push_back (new frameGPUi (info->targetWidth, info->targetHeight, internalType, info));
 	}
 
 	frameGPUu from (info);
@@ -772,83 +772,35 @@ void videoRenderer::render () {
 
 			to.timecode = from.timecode;
 
-			int internalCurrent = 0;
+			std::vector<frameGPUi*>::iterator internalIt = internal.begin ();
 
 			for (int i = 0; i < info->planes; i++) {
 				glActiveTexture (GL_TEXTURE0 + i);
 				glBindTexture (GL_TEXTURE_2D, from.plane[i]);
 			}
 
-			glActiveTexture (GL_TEXTURE0);
-			glViewport (0, 0, info->width, info->height);
-			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[internalCurrent]->plane, 0);
-			glUseProgram (renderToInternalSP);
-			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-			glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+			renderPass (*internalIt, renderToInternalSP, 0);
 
-			if (render420to422SP) {
-				// render only chroma
-				glViewport (0, 0, info->chromaWidth, info->height);
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (render420to422SP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+			if (render420to422SP)
+				renderPass (*++internalIt, render420to422SP, 1);
 
-				// bind chroma to texture 1
-				glActiveTexture (GL_TEXTURE0 + 1);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-				glActiveTexture (GL_TEXTURE0);
-				glViewport (0, 0, info->width, info->height);
-			}
-
-			if (render422to444SP) {
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (render422to444SP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-			}
+			if (render422to444SP)
+				renderPass (*++internalIt, render422to444SP, 0);
 
 			if (renderBlurXSP && renderBlurYSP && renderDebandSP) {
-				// render blurred frame to texture 1
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (renderBlurXSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glActiveTexture (GL_TEXTURE0 + 1);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (renderBlurYSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-				glActiveTexture (GL_TEXTURE0);
-
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (renderDebandSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
+				renderPass (*++internalIt, renderBlurXSP, 1);
+				renderPass (*++internalIt, renderBlurYSP, 1);
+				renderPass (*++internalIt, renderDebandSP, 0);
 			}
 
-			if (renderYuvToRgbSP) {
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (renderYuvToRgbSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-			}
+			if (renderYuvToRgbSP)
+				renderPass (*++internalIt, renderYuvToRgbSP, 0);
 
-			if (renderScaleHeightSP) {
-				glViewport (0, 0, info->width, info->targetHeight);
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (renderScaleHeightSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-			}
+			if (renderScaleHeightSP)
+				renderPass (*++internalIt, renderScaleHeightSP, 0);
 
-			if (renderScaleWidthSP) {
-				glViewport (0, 0, info->targetWidth, info->targetHeight);
-				glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, internal[++internalCurrent]->plane, 0);
-				glUseProgram (renderScaleWidthSP);
-				glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-				glBindTexture (GL_TEXTURE_2D, internal[internalCurrent]->plane);
-			}
+			if (renderScaleWidthSP)
+				renderPass (*++internalIt, renderScaleWidthSP, 0);
 
 			glViewport (0, 0, info->targetWidth, info->targetHeight);
 			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
@@ -869,12 +821,20 @@ void videoRenderer::render () {
 		}
 	}
 
-	for (int i = 0; i < internalCount; i++)
-		delete internal[i];
-	delete[] internal;
+	for (std::vector<frameGPUi*>::iterator internalIt = internal.begin (); internalIt != internal.end(); ++internalIt)
+		delete *internalIt;
 
 	glDeleteFramebuffers (1, &framebuffer);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+}
+
+void videoRenderer::renderPass (frameGPUi* frame, GLuint program, int target) {
+	glViewport (0, 0, frame->width, frame->height);
+	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame->plane, 0);
+	glUseProgram (program);
+	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+	glActiveTexture (GL_TEXTURE0 + target);
+	glBindTexture (GL_TEXTURE_2D, frame->plane);
 }
 
 void videoRenderer::getGlError () {

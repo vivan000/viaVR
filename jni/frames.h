@@ -50,6 +50,7 @@ class frameGPUi {
 public:
 	GLuint plane;
 	int timecode;
+	const int width, height;
 
 	frameGPUi (int w, int h, pFormat type, videoInfo* f);
 	~frameGPUi ();

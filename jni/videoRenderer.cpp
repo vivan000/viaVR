@@ -51,6 +51,8 @@ videoRenderer::~videoRenderer () {
 		delete displayCurr;
 
 		delContexts ();
+
+		glDeleteBuffers (3, vboIds);
 	}
 
 	delete info;

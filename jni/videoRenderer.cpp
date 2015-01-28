@@ -715,18 +715,18 @@ void videoRenderer::renderInit () {
 
 	if (debanding) {
 		const GLfloat blurWeight[] = {
-			0.0524084089, 0.0694552266, 0.0684512453, 0.0669028010,
-			0.0648475801, 0.0623346857, 0.0594226890, 0.0561773634};
+			0.0886884268, 0.1111888680, 0.0959098625, 0.0760291736,
+			0.0553875087, 0.0370815002, 0.0228147565, 0.0128999036};
 		const GLfloat blurOffsetX[] = {
-			(float)  0.6664353860 / info->width, (float)  2.4986992745 / info->width,
-			(float)  4.4976587060 / info->width, (float)  6.4966181577 / info->width,
-			(float)  8.4955776387 / info->width, (float) 10.4945371581 / info->width,
-			(float) 12.4934967247 / info->width, (float) 14.4924563477 / info->width};
+			(float)  0.6643036225 / info->width, (float)  2.4867343814 / info->width,
+			(float)  4.4761344303 / info->width, (float)  6.4655559368 / info->width,
+			(float)  8.4550083353 / info->width, (float) 10.4445009501 / info->width,
+			(float) 12.4340429621 / info->width, (float) 14.4236433777 / info->width};
 		const GLfloat blurOffsetY[] = {
-			(float)  0.6664353860 / info->height, (float)  2.4986992745 / info->height,
-			(float)  4.4976587060 / info->height, (float)  6.4966181577 / info->height,
-			(float)  8.4955776387 / info->height, (float) 10.4945371581 / info->height,
-			(float) 12.4934967247 / info->height, (float) 14.4924563477 / info->height};
+			(float)  0.6643036225 / info->height, (float)  2.4867343814 / info->height,
+			(float)  4.4761344303 / info->height, (float)  6.4655559368 / info->height,
+			(float)  8.4550083353 / info->height, (float) 10.4445009501 / info->height,
+			(float) 12.4340429621 / info->height, (float) 14.4236433777 / info->height};
 		const int blurTaps = sizeof (blurWeight) / sizeof (*blurWeight);
 
 		const char* renderBlurXFP =

@@ -197,7 +197,7 @@ bool videoRenderer::init () {
 	renderThread = std::thread (&videoRenderer::render, this);
 
 	// wait till there's at least 1 frame to show
-	while (uploadQueue->isEmpty ()) {
+	while (renderQueue->isEmpty ()) {
 		usleep (10000);
 	}
 

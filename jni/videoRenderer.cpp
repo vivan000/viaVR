@@ -636,14 +636,14 @@ void videoRenderer::renderInit () {
 
 			shader renderToInternalShader (renderVP,
 				info->lumaFormat == GL_RED ? render08ToInternalFP : render16ToInternalFP,
-				"highp", info->hwChroma ? "#define HWCHROMA" : "");
+				"highp", info->halfWidth && info->hwChroma ? "#define HWCHROMA" : "");
 			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
 
 			glUseProgram (renderToInternalSP);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
-			if (info->hwChroma)
+			if (info->halfWidth && info->hwChroma)
 				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
 
 			pass.push_back (new renderingPass (

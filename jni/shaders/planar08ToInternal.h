@@ -26,17 +26,19 @@ uniform sampler2D Cb;
 uniform sampler2D Cr;
 #ifdef HWCHROMA
 uniform float pitch;
+#else
+#define chromaCoord coord
 #endif
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
 #ifdef HWCHROMA
-	vec2 newCoord = coord + vec2 (pitch, 0.0);
-	outColor = vec4 (texture (Y, coord).r, texture (Cb, newCoord).r,
-		texture (Cr, newCoord).r, 1.0);
-#else
-	outColor = vec4 (texture (Y, coord).r, texture (Cb, coord).r,
-		texture (Cr, coord).r, 1.0);
+	vec2 chromaCoord = vec2 (coord.x + pitch, coord.y);
 #endif
+	outColor = vec4 (
+		texture (Y, coord).r,
+		texture (Cb, chromaCoord).r,
+		texture (Cr, chromaCoord).r,
+		1.0);
 })";

@@ -17,32 +17,35 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
+#pragma once
+
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
 #include <thread>
 #include <vector>
+#include "IVideoRenderer.h"
+#include "IVideoDecoder.h"
 #include "frames.h"
 #include "queue.h"
-#include "IVideoDecoder.h"
 #include "renderingPass.h"
 
 typedef std::vector<renderingPass*> rPass;
 
-class videoRenderer {
+class videoRenderer: public IVideoRenderer {
 public:
 	videoRenderer ();
 	~videoRenderer ();
+
 	bool addVideoDecoder (IVideoDecoder* video);
-	void setSize (int width, int height);
 	void setRefreshRate (int fps);
 	bool init ();
+
 	void drawFrame ();
+
+	void seek (int timecode);
 	void play (int timecode);
 	void pause ();
-	void flush ();
 
-	// void setMode ();
-	// void setSubtitleDecoder ();
 	const char* getName ();
 	int getMajorVersion ();
 	int getMinorVersion ();

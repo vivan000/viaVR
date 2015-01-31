@@ -60,15 +60,15 @@ videoRenderer::~videoRenderer () {
 	delete info;
 }
 
-const char* getName () {
+const char* videoRenderer::getName () {
 	return "viaVR";
 }
 
-int getMajorVersion () {
+int videoRenderer::getMajorVersion () {
 	return 0;
 }
 
-int getMinorVersion () {
+int videoRenderer::getMinorVersion () {
 	return 0;
 }
 
@@ -108,9 +108,6 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	info->hwScaleLinear = true;
 
 	return true;
-}
-
-void videoRenderer::setSize (int width, int height) {
 }
 
 void videoRenderer::setRefreshRate (int fps) {
@@ -418,19 +415,7 @@ void videoRenderer::getNextFrame (frameGPUo* f) {
 	repeat += displayRefreshRate;
 }
 
-void videoRenderer::play (int timecode) {
-	start = nanotime () - (int64_t) timecode * 1000000LL;
-	presentedFrames = 0;
-	repeat = 0;
-	frameNumber = 0;
-	playing = true;
-}
-
-void videoRenderer::pause () {
-	playing = false;
-}
-
-void videoRenderer::flush () {
+void videoRenderer::seek (int timestamp) {
 	if (initialized) {
 		// stop everything
 		decoding = false;
@@ -447,12 +432,26 @@ void videoRenderer::flush () {
 		uploadQueue->flush();
 		renderQueue->flush();
 
+		// seek video
+		video->seek (timestamp);
+
 		// restart threads
 		decodeThread = std::thread (&videoRenderer::decode, this);
 		uploadThread = std::thread (&videoRenderer::upload, this);
 		renderThread = std::thread (&videoRenderer::render, this);
 	}
+}
 
+void videoRenderer::play (int timecode) {
+	start = nanotime () - (int64_t) timecode * 1000000LL;
+	presentedFrames = 0;
+	repeat = 0;
+	frameNumber = 0;
+	playing = true;
+}
+
+void videoRenderer::pause () {
+	playing = false;
 }
 
 void videoRenderer::decode () {

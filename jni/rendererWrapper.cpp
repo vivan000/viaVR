@@ -1,8 +1,9 @@
 #include "rendererWrapper.h"
+#include "IVideoRenderer.h"
 #include "videoRenderer.h"
 #include "patternGenerator.h"
 
-videoRenderer* r;
+IVideoRenderer* r;
 patternGenerator video;
 
 void on_surface_created () {

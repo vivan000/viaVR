@@ -96,7 +96,8 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 
 	LOGD ("Video info:");
 	LOGD ("Video %ix%i (%i:%i)", info->width, info->height, videoSarWidth, videoSarHeight);
-	LOGD ("FourCC: %c%c%c%c", reinterpret_cast <char*> (&info->fourCC)[0], reinterpret_cast <char*> (&info->fourCC)[1],
+	LOGD (reinterpret_cast <char*> (&info->fourCC)[2] > 16 ? "FourCC: %c%c%c%c\n" : "FourCC: %c%c[%i][%i]\n",
+		reinterpret_cast <char*> (&info->fourCC)[0], reinterpret_cast <char*> (&info->fourCC)[1],
 		reinterpret_cast <char*> (&info->fourCC)[2], reinterpret_cast <char*> (&info->fourCC)[3]);
 	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", video->getMatrix () != 0 ? "upstream" : "guess");
 	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", video->getRange () != 0 ? "upstream" : "guess");
@@ -106,6 +107,8 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	info->hwChromaLinear = true;
 	info->hwScale = true;
 	info->hwScaleLinear = true;
+
+	LOGD ("Video decoder connected");
 
 	return true;
 }
@@ -121,6 +124,10 @@ bool videoRenderer::init () {
 	if (GLversion < 3)
 		return false;
 	LOGD ("Version: OK");
+
+	if (!info->init)
+		return false;
+	LOGD ("Video decoder: OK");
 
 	genContexts ();
 	setAspect ();
@@ -820,6 +827,8 @@ void videoRenderer::renderInit () {
 			new frameGPUi (info->width, info->targetHeight, internalType, info),
 			renderScaleHeightSP, 0));
 	}
+
+	LOGD ("Rendering chain: OK");
 }
 
 void videoRenderer::getGlError () {

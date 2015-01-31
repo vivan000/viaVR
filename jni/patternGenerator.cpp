@@ -5,7 +5,7 @@
 
 patternGenerator::patternGenerator () {
 	width = 720;
-	height = 720; // 1038;
+	height = 1280; // 1038;
 	sarWidth = 1;
 	sarHeight = 1;
 	fpsNumerator = 30;
@@ -14,7 +14,7 @@ patternGenerator::patternGenerator () {
 	matrix = 1;
 	decoderCount = 0;
 
-	int mode = 3;
+	int mode = 6;
 
 	switch (mode) {
 		case 1:
@@ -37,11 +37,15 @@ patternGenerator::patternGenerator () {
 			fourCC = (int) pFormat::P010;
 			bpp = 2;
 			break;
+		case 6:
+			fourCC = (int) pFormat::P416;
+			bpp = 2;
+			break;
 	}
 
 	videoInfo* info = new videoInfo (width, height, fourCC, range, matrix);
 
-	int dheight = height + 510;
+	int dheight = height + 720;
 	switch (mode) {
 		case 1:
 			// RGBA
@@ -116,6 +120,18 @@ patternGenerator::patternGenerator () {
 					((unsigned short*) dataB)[info->chromaWidth * y + x] = line ? 240*256 : 128*256;
 				}
 			break;
+		case 6:
+			// planar 16-bit 4:4:4 (P416), animated
+			dataR = new unsigned char[info->width * dheight * bpp];
+			dataG = new unsigned char[info->width * dheight * bpp];
+			dataB = new unsigned char[info->width * dheight * bpp];
+			for (int y = 0; y < dheight; ++y)
+				for (int x = 0; x < info->width; ++x) {
+					((unsigned short*) dataR)[info->width * y + x] = 32768;
+					((unsigned short*) dataG)[info->width * y + x] = x * 65535 / (width - 1);
+					((unsigned short*) dataB)[info->width * y + x] = 65535 - (y * 65535 / (720 - 1));
+				}
+			break;
 	}
 	infoptr = (void*) info;
 }
@@ -128,13 +144,13 @@ patternGenerator::~patternGenerator () {
 }
 
 int patternGenerator::getNextVideoframe (char* buf, int size) {
-	int shift = 0;//510 - (decoderCount * 10) % 510;
+	int shift = 720 - (decoderCount * 10) % 720;
 	videoInfo* info = (videoInfo*) infoptr;
 
 	memcpy (buf, dataR, info->width * info->height * bpp);
 	if (info->planes == 3) {
-		memcpy (buf + info->offset1, dataG, info->chromaWidth * info->chromaHeight * bpp);
-		memcpy (buf + info->offset2, dataB, info->chromaWidth * info->chromaHeight * bpp);
+		memcpy (buf + info->offset1, dataG + info->chromaWidth * shift * bpp, info->chromaWidth * info->chromaHeight * bpp);
+		memcpy (buf + info->offset2, dataB + info->chromaWidth * shift * bpp, info->chromaWidth * info->chromaHeight * bpp);
 	}
 
 	return decoderCount++ * 1000 * fpsDenominator / fpsNumerator;

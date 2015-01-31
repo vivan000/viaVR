@@ -23,7 +23,7 @@
 #include <vector>
 #include "frames.h"
 #include "queue.h"
-#include "videoDecoder.h"
+#include "IVideoDecoder.h"
 #include "renderingPass.h"
 
 typedef std::vector<renderingPass*> rPass;
@@ -32,7 +32,7 @@ class videoRenderer {
 public:
 	videoRenderer ();
 	~videoRenderer ();
-	bool addVideoDecoder (videoDecoder* video);
+	bool addVideoDecoder (IVideoDecoder* video);
 	void setSize (int width, int height);
 	void setRefreshRate (int fps);
 	bool init ();
@@ -69,7 +69,7 @@ private:
 	void getFbStatus ();
 
 	// video config
-	videoDecoder* video;
+	IVideoDecoder* video;
 	videoInfo* info;
 	int videoSarWidth, videoSarHeight;
 	int videoFps;

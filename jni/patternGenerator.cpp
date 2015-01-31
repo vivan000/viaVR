@@ -1,8 +1,9 @@
-#include "videoDecoder.h"
-#include "videoInfo.h"
 #include <math.h>
+#include <stdlib.h>
+#include "patternGenerator.h"
+#include "videoInfo.h"
 
-videoDecoder::videoDecoder () {
+patternGenerator::patternGenerator () {
 	width = 720;
 	height = 720; // 1038;
 	sarWidth = 1;
@@ -13,7 +14,7 @@ videoDecoder::videoDecoder () {
 	matrix = 1;
 	decoderCount = 0;
 
-	int mode = 2;
+	int mode = 3;
 
 	switch (mode) {
 		case 1:
@@ -119,14 +120,14 @@ videoDecoder::videoDecoder () {
 	infoptr = (void*) info;
 }
 
-videoDecoder::~videoDecoder () {
+patternGenerator::~patternGenerator () {
 	delete[] dataR;
 	delete[] dataG;
 	delete[] dataB;
 	delete (videoInfo*)infoptr;
 }
 
-int videoDecoder::getNextVideoframe (char* buf, int size) {
+int patternGenerator::getNextVideoframe (char* buf, int size) {
 	int shift = 0;//510 - (decoderCount * 10) % 510;
 	videoInfo* info = (videoInfo*) infoptr;
 
@@ -139,42 +140,42 @@ int videoDecoder::getNextVideoframe (char* buf, int size) {
 	return decoderCount++ * 1000 * fpsDenominator / fpsNumerator;
 }
 
-int videoDecoder::getWidth () {
+void patternGenerator::seek (int timestamp) {
+	decoderCount = timestamp;
+}
+
+int patternGenerator::getWidth () {
 	return width;
 }
 
-int videoDecoder::getHeight () {
+int patternGenerator::getHeight () {
 	return height;
 }
 
-int videoDecoder::getSarWidth () {
+int patternGenerator::getSarWidth () {
 	return sarWidth;
 }
 
-int videoDecoder::getSarHeight () {
+int patternGenerator::getSarHeight () {
 	return sarHeight;
 }
 
-int videoDecoder::getFpsNumerator () {
+int patternGenerator::getFpsNumerator () {
 	return fpsNumerator;
 }
 
-int videoDecoder::getFpsDenominator () {
+int patternGenerator::getFpsDenominator () {
 	return fpsDenominator;
 }
 
-int videoDecoder::getRange () {
+int patternGenerator::getRange () {
 	return range;
 }
 
-int videoDecoder::getMatrix () {
+int patternGenerator::getMatrix () {
 	return matrix;
 }
 
-int videoDecoder::getFourCC () {
+int patternGenerator::getFourCC () {
 	return fourCC;
-}
-
-int videoDecoder::getCurrentTimecode () {
-	return decoderCount * 1000 * fpsDenominator / fpsNumerator;
 }

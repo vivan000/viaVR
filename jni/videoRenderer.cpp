@@ -82,7 +82,7 @@ int videoRenderer::tcNow () {
 	return (int) ((nanotime () - start) / 1000000);
 }
 
-bool videoRenderer::addVideoDecoder (videoDecoder* video) {
+bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	videoRenderer::video = video;
 	info = new videoInfo (video->getWidth (), video->getHeight (),
 		video->getFourCC (), video->getRange (), video->getMatrix ());

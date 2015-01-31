@@ -1,11 +1,12 @@
-#include <stdlib.h>
+#include "IVideoDecoder.h"
 
-class videoDecoder {
+class patternGenerator: public IVideoDecoder {
 public:
-	videoDecoder ();
-	~videoDecoder ();
+	patternGenerator ();
+	~patternGenerator ();
 
 	int getNextVideoframe (char* buf, int size);
+	void seek (int timestamp);
 
 	int getWidth ();
 	int getHeight ();
@@ -19,8 +20,6 @@ public:
 	int getRange ();
 	int getMatrix ();
 	int getFourCC ();
-
-	int getCurrentTimecode ();
 
 private:
 	void* infoptr;

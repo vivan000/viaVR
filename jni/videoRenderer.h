@@ -111,6 +111,8 @@ private:
 	int frameNumber, presentedFrames;
 	int hardLate, softLate, softEarly, hardEarly;
 
+	int prev;
+
 	GLuint vboIds[3];
 
 	rPass pass;

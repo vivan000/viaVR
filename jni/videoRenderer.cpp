@@ -375,7 +375,7 @@ void videoRenderer::drawFrame () {
 			while (repeat <= 0) {
 				getNextFrame (displayCurr);
 			}
-
+/*
 			if (displayCurr->timecode < tc + softLate) {
 				if (displayCurr->timecode < tc + hardLate) {
 					// if very late - drop current frame
@@ -397,7 +397,7 @@ void videoRenderer::drawFrame () {
 					repeat += videoFps;
 				}
 			}
-
+*/
 			presentFrame (displayCurr);
 			if (uploadQueue->isEmpty () && !uploading)
 				playing = false;
@@ -409,7 +409,11 @@ void videoRenderer::drawFrame () {
 }
 
 void videoRenderer::presentFrame (frameGPUo* f) {
-	// LOGD ("frame %i timecode %i now %i repeat %i", frameNumber, f->timecode, tcNow (), repeat);
+	// LOGD ("queue stats: dec %i up %i rend %i", decodeQueue->getSize(), uploadQueue->getSize (), renderQueue->getSize());
+	int t = tcNow ();
+	LOGD ("frame %3i timecode %5i now %5i (+%2i) repeat %2i", frameNumber, f->timecode, t, t - prev, repeat);
+	prev = t;
+
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 

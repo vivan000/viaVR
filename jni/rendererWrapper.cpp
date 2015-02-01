@@ -1,10 +1,10 @@
 #include "rendererWrapper.h"
 #include "IVideoRenderer.h"
 #include "videoRenderer.h"
-#include "patternGenerator.h"
+#include "rawDecoder.h"
 
 IVideoRenderer* r;
-patternGenerator video;
+rawDecoder video;
 
 void on_surface_created () {
 	if (r) {

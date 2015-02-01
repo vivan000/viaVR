@@ -103,7 +103,6 @@ private:
 	bool initialized;
 	int64_t start;
 
-	int surfaceWidth, surfaceHeight;
 	int displayRefreshRate = 60;
 
 	frameGPUo* displayCurr;
@@ -118,4 +117,16 @@ private:
 	pFormat internalType;
 	const char* precision = "highp";
 	int bitdepth;
+
+	bool decodeSeeking;
+	bool uploadSeeking;
+	bool renderSeeking;
+
+	frameCPU*  decodeTo;
+	frameCPU*  uploadFrom;
+	frameGPUu* uploadTo;
+	frameGPUu* renderFrom;
+	frameGPUo* renderTo;
+
+	GLuint framebuffer;
 };

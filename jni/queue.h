@@ -24,8 +24,8 @@ class queue {
 public:
 	queue (int size, videoInfo* f);
 	~queue ();
-	void push (T&);
-	void pop (T&);
+	void push (T*);
+	void pop (T*);
 	void flush ();
 	int getSize ();
 	bool isEmpty ();
@@ -58,23 +58,23 @@ queue<T>::~queue () {
 }
 
 template <class T>
-void queue<T>::push (T& f) {
+void queue<T>::push (T* f) {
 	_lock.lock ();
 	int t = first + size;
 	if (t > capacity - 1)
 		t -= capacity;
-	f.swap (*buffer[t]);
+	f->swap (*buffer[t]);
 	size++;
 	_lock.unlock ();
 }
 
 template <class T>
-void queue<T>::pop (T& f) {
+void queue<T>::pop (T* f) {
 	_lock.lock ();
 	int t = first++;
 	if (first > capacity - 1)
 		first -= capacity;
-	f.swap (*buffer[t]);
+	f->swap (*buffer[t]);
 	size--;
 	_lock.unlock ();
 }

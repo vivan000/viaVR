@@ -192,12 +192,15 @@ bool videoRenderer::init () {
 	LOGD ("Display shader: OK");
 
 	// start threads
+	decodeSeeking = false;
 	decodeQueue = new queue<frameCPU> (8, info);
 	decodeThread = std::thread (&videoRenderer::decode, this);
 
+	uploadSeeking = false;
 	uploadQueue = new queue<frameGPUu> (8, info);
 	uploadThread = std::thread (&videoRenderer::upload, this);
 
+	renderSeeking = false;
 	renderQueue = new queue<frameGPUo> (8, info);
 	renderThread = std::thread (&videoRenderer::render, this);
 
@@ -282,8 +285,8 @@ bool videoRenderer::checkExtensions () {
 void videoRenderer::setAspect () {
 	int rectangle[4];
 	glGetIntegerv (GL_VIEWPORT, rectangle);
-	surfaceWidth = rectangle[2] - rectangle[0];
-	surfaceHeight = rectangle[3] - rectangle[1];
+	int surfaceWidth = rectangle[2] - rectangle[0];
+	int surfaceHeight = rectangle[3] - rectangle[1];
 
 	int mode = 1;
 	switch (mode) {
@@ -418,7 +421,7 @@ void videoRenderer::presentFrame (frameGPUo* f) {
 
 void videoRenderer::getNextFrame (frameGPUo* f) {
 	if (!renderQueue->isEmpty ()) {
-		renderQueue->pop (*f);
+		renderQueue->pop (f);
 
 		frameNumber++;
 		newFrame = true;
@@ -429,6 +432,10 @@ void videoRenderer::getNextFrame (frameGPUo* f) {
 
 void videoRenderer::seek (int timestamp) {
 	if (initialized) {
+		decodeSeeking = true;
+		uploadSeeking = true;
+		renderSeeking = true;
+
 		// stop everything
 		decoding = false;
 		uploading = false;
@@ -467,15 +474,20 @@ void videoRenderer::pause () {
 }
 
 void videoRenderer::decode () {
-	frameCPU t (info);
+	if (!decodeSeeking) {
+		decodeTo = new frameCPU (info);
+
+		decodeSeeking = false;
+	}
+
 	int size = info->width * info->height * info->Bpp / 8;
 
 	decoding = true;
 	while (decoding) {
 		if (!decodeQueue->isFull ()) {
-			t.timecode = video->getNextVideoframe (t.plane, size);
+			decodeTo->timecode = video->getNextVideoframe (decodeTo->plane, size);
 
-			switch (t.timecode) {
+			switch (decodeTo->timecode) {
 				case -1:
 					// stop playback
 					decoding = false;
@@ -485,51 +497,64 @@ void videoRenderer::decode () {
 					usleep (10000);
 					break;
 				default:
-					decodeQueue->push (t);
+					decodeQueue->push (decodeTo);
 			}
 		} else {
 			usleep (10000);
 		}
+	}
+
+	if (!decodeSeeking) {
+		delete decodeTo;
 	}
 }
 
 void videoRenderer::upload () {
 	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer2, uploadContext);
 
-	frameCPU from (info);
-	frameGPUu to (info);
+	if (!uploadSeeking) {
+		uploadFrom = new frameCPU (info);
+		uploadTo = new frameGPUu (info);
+
+		uploadSeeking = false;
+	}
 
 	uploading = true;
 	while (uploading) {
 		if (!decodeQueue->isEmpty () && !uploadQueue->isFull ()) {
-			decodeQueue->pop (from);
+			decodeQueue->pop (uploadFrom);
 
-			to.timecode = from.timecode;
+			uploadTo->timecode = uploadFrom->timecode;
 
-			glBindTexture (GL_TEXTURE_2D, to.plane[0]);
+			glBindTexture (GL_TEXTURE_2D, uploadTo->plane[0]);
 			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->width, info->height,
-				info->lumaFormat, info->lumaType, (GLvoid*) from.plane);
+				info->lumaFormat, info->lumaType, (GLvoid*) uploadFrom->plane);
 
 			if (info->planes > 1) {
-				glBindTexture (GL_TEXTURE_2D, to.plane[1]);
+				glBindTexture (GL_TEXTURE_2D, uploadTo->plane[1]);
 				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
-					info->chromaFormat, info->chromaType, (GLvoid*) (from.plane + info->offset1));
+					info->chromaFormat, info->chromaType, (GLvoid*) (uploadFrom->plane + info->offset1));
 			}
 
 			if (info->planes > 2) {
-				glBindTexture (GL_TEXTURE_2D, to.plane[2]);
+				glBindTexture (GL_TEXTURE_2D, uploadTo->plane[2]);
 				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
-					info->chromaFormat, info->chromaType, (GLvoid*) (from.plane + info->offset2));
+					info->chromaFormat, info->chromaType, (GLvoid*) (uploadFrom->plane + info->offset2));
 			}
 
 			glFlush ();
 
-			uploadQueue->push (to);
+			uploadQueue->push (uploadTo);
 		} else if (decodeQueue->isEmpty () && !decoding) {
 			uploading = false;
 		} else {
 			usleep (10000);
 		}
+	}
+
+	if (!uploadSeeking) {
+		delete uploadFrom;
+		delete uploadTo;
 	}
 
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -538,43 +563,45 @@ void videoRenderer::upload () {
 void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
 
-	if (renderInit ())
-		LOGD ("Rendering chain: OK");
-	else {
-		for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
-			delete *passIt;
-		return;
+	if (!renderSeeking) {
+		if (renderInit ())
+			LOGD ("Rendering chain: OK");
+		else {
+			for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
+				delete *passIt;
+			return;
+		}
+
+		glGenFramebuffers (1, &framebuffer);
+		glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
+
+		renderFrom = new frameGPUu (info);
+		renderTo = new frameGPUo (info);
+
+		renderSeeking = false;
 	}
-
-	// create FBO
-	GLuint framebuffer;
-	glGenFramebuffers (1, &framebuffer);
-	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-
-	frameGPUu from (info);
-	frameGPUo to (info);
 
 	rendering = true;
 	while (rendering) {
 		if (!uploadQueue->isEmpty () && !renderQueue->isFull ()) {
-			uploadQueue->pop (from);
+			uploadQueue->pop (renderFrom);
 
-			to.timecode = from.timecode;
+			renderTo->timecode = renderFrom->timecode;
 
 			for (int i = 0; i < info->planes; i++) {
 				glActiveTexture (GL_TEXTURE0 + i);
-				glBindTexture (GL_TEXTURE_2D, from.plane[i]);
+				glBindTexture (GL_TEXTURE_2D, renderFrom->plane[i]);
 			}
 
 			for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
 				if (!(*passIt)->dither)
 					(*passIt)->execute ();
 				else
-					(*passIt)->execute (to.plane, info->targetWidth, info->targetHeight);
+					(*passIt)->execute (renderTo->plane, info->targetWidth, info->targetHeight);
 
 			glFlush ();
 
-			renderQueue->push (to);
+			renderQueue->push (renderTo);
 		} else if (uploadQueue->isEmpty () && !uploading) {
 			rendering = false;
 		} else {
@@ -582,9 +609,15 @@ void videoRenderer::render () {
 		}
 	}
 
-	glDeleteFramebuffers (1, &framebuffer);
-	for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
-		delete *passIt;
+	if (!renderSeeking) {
+		for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
+			delete *passIt;
+
+		delete renderFrom;
+		delete renderTo;
+
+		glDeleteFramebuffers (1, &framebuffer);
+	}
 
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }

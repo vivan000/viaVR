@@ -67,7 +67,7 @@ private:
 	void decode ();
 	void render ();
 
-	void renderInit ();
+	bool renderInit ();
 	void getGlError ();
 	void getFbStatus ();
 
@@ -93,6 +93,7 @@ private:
 
 	EGLDisplay display;
 
+	EGLSurface mainSurface, mainSurface2;
 	EGLSurface uploadPBuffer, uploadPBuffer2;
 	EGLSurface renderPBuffer, renderPBuffer2;
 

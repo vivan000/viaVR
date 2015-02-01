@@ -52,9 +52,9 @@ videoRenderer::~videoRenderer () {
 
 		delete displayCurr;
 
-		delContexts ();
-
 		glDeleteBuffers (3, vboIds);
+
+		delContexts ();
 	}
 
 	delete info;
@@ -118,6 +118,8 @@ void videoRenderer::setRefreshRate (int fps) {
 }
 
 bool videoRenderer::init () {
+	srand (time (NULL));
+
 	// check version
 	GLint GLversion = 0;
 	glGetIntegerv (GL_MAJOR_VERSION, &GLversion);
@@ -136,18 +138,6 @@ bool videoRenderer::init () {
 	if (!checkExtensions ())
 		return false;
 	LOGD ("Extensions: OK");
-
-	// load shaders
-	const char* displayVP =
-		#include "shaders/displayVert.h"
-	const char* displayFP =
-		#include "shaders/displayFrag.h"
-
-	shader displayShader (displayVP, displayFP);
-	GLuint displaySP = displayShader.loadProgram ();
-	if (!displaySP)
-		return false;
-	LOGD ("Shaders: OK");
 
 	// load coordinates
 	const float VertexPositions[] = {
@@ -185,10 +175,21 @@ bool videoRenderer::init () {
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
 
-	// set texture unit
+	// load shaders
+	const char* displayVP =
+		#include "shaders/displayVert.h"
+	const char* displayFP =
+		#include "shaders/displayFrag.h"
+
+	shader displayShader (displayVP, displayFP);
+	GLuint displaySP = displayShader.loadProgram ();
+	if (!displaySP)
+		return false;
+
 	GLint displayTLoc = glGetUniformLocation (displaySP, "video");
 	glUseProgram (displaySP);
 	glUniform1i (displayTLoc, 0);
+	LOGD ("Display shader: OK");
 
 	// start threads
 	decodeQueue = new queue<frameCPU> (8, info);
@@ -330,6 +331,8 @@ void videoRenderer::setAspect () {
 
 void videoRenderer::genContexts () {
 	mainContext = eglGetCurrentContext ();
+	mainSurface = eglGetCurrentSurface (EGL_DRAW);
+	mainSurface2 = eglGetCurrentSurface (EGL_READ);
 	display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
 
 	EGLConfig config;
@@ -338,6 +341,7 @@ void videoRenderer::genContexts () {
 	EGLint attribListCtx[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
 	EGLint attribListSrf[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
 	eglChooseConfig (display, attribListCfg, &config, 1, &numConfigs);
+
 	uploadContext = eglCreateContext (display, config, mainContext, attribListCtx);
 	uploadPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
 	uploadPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
@@ -345,6 +349,7 @@ void videoRenderer::genContexts () {
 	renderContext = eglCreateContext (display, config, mainContext, attribListCtx);
 	renderPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
 	renderPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
+
 }
 
 void videoRenderer::delContexts () {
@@ -532,57 +537,19 @@ void videoRenderer::upload () {
 
 void videoRenderer::render () {
 	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
-	srand (time (NULL));
+
+	if (renderInit ())
+		LOGD ("Rendering chain: OK");
+	else {
+		for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
+			delete *passIt;
+		return;
+	}
 
 	// create FBO
 	GLuint framebuffer;
 	glGenFramebuffers (1, &framebuffer);
 	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-
-	// load coordinates
-	const GLuint vertexCoordLoc = 0;
-	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
-	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (vertexCoordLoc);
-
-	const GLuint textureCoordLoc = 1;
-	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
-	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (textureCoordLoc);
-
-	renderInit ();
-
-	// dither
-	frameGPUi dither (32, 32, pFormat::DITHER, info);
-	GLint ditherOffset;
-	GLuint renderDitherSP; {
-		#include "ditherMatrix.h"
-
-		glActiveTexture (GL_TEXTURE0 + 3);
-		glBindTexture (GL_TEXTURE_2D, dither.plane);
-		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);
-		glActiveTexture (GL_TEXTURE0);
-
-		const char* renderVP =
-			#include "shaders/displayVert.h"
-		const char* renderDitherFP =
-			#include "shaders/dither.h"
-
-		shader renderDitherShader (renderVP, renderDitherFP, precision);
-		renderDitherSP = renderDitherShader.loadProgram ();
-
-		glUseProgram (renderDitherSP);
-		glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
-		glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), 3);
-
-		glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
-			(float) (pow (2.0, bitdepth) - 1.0),
-			(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
-		glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
-			(float) ((double) info->targetWidth / 32.0),
-			(float) ((double) info->targetHeight / 32.0));
-		ditherOffset = glGetUniformLocation (renderDitherSP, "offset");
-	}
 
 	frameGPUu from (info);
 	frameGPUo to (info);
@@ -600,16 +567,10 @@ void videoRenderer::render () {
 			}
 
 			for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
-				(*passIt)->execute ();
-
-			glViewport (0, 0, info->targetWidth, info->targetHeight);
-			glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to.plane, 0);
-			glUseProgram (renderDitherSP);
-			glUniform3f (ditherOffset,
-				(float) ((rand() % 32) / 32.0),
-				(float) ((rand() % 32) / 32.0),
-				(float) (rand() % 3));
-			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+				if (!(*passIt)->dither)
+					(*passIt)->execute ();
+				else
+					(*passIt)->execute (to.plane, info->targetWidth, info->targetHeight);
 
 			glFlush ();
 
@@ -621,14 +582,25 @@ void videoRenderer::render () {
 		}
 	}
 
+	glDeleteFramebuffers (1, &framebuffer);
 	for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
 		delete *passIt;
 
-	glDeleteFramebuffers (1, &framebuffer);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
-void videoRenderer::renderInit () {
+bool videoRenderer::renderInit () {
+	// enable coordinates
+	const GLuint vertexCoordLoc = 0;
+	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
+	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (vertexCoordLoc);
+
+	const GLuint textureCoordLoc = 1;
+	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
+	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray (textureCoordLoc);
+
 	const char* renderVP =
 		#include "shaders/displayVert.h"
 
@@ -644,6 +616,8 @@ void videoRenderer::renderInit () {
 				info->lumaFormat == GL_RED ? render08ToInternalFP : render16ToInternalFP,
 				"highp", info->halfWidth && info->hwChroma ? "#define HWCHROMA" : "");
 			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
+			if (!renderToInternalSP)
+				return false;
 
 			glUseProgram (renderToInternalSP);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
@@ -654,7 +628,7 @@ void videoRenderer::renderInit () {
 
 			pass.push_back (new renderingPass (
 				new frameGPUi (info->width, info->height, internalType, info),
-				renderToInternalSP, 0));
+				renderToInternalSP, 0, 0));
 
 			break;
 		}
@@ -665,13 +639,15 @@ void videoRenderer::renderInit () {
 
 			shader renderToInternalShader (renderVP, renderRgbToInteralFP, "highp");
 			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
+			if (!renderToInternalSP)
+				return false;
 
 			glUseProgram (renderToInternalSP);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"), 0);
 
 			pass.push_back (new renderingPass (
 				new frameGPUi (info->width, info->height, internalType, info),
-				renderToInternalSP, 0));
+				renderToInternalSP, 0, 0));
 
 			break;
 		}
@@ -684,6 +660,8 @@ void videoRenderer::renderInit () {
 
 		shader render420to422Shader (renderVP, render420to422FP, precision);
 		GLuint render420to422SP = render420to422Shader.loadProgram ();
+		if (!render420to422SP)
+			return false;
 
 		glUseProgram (render420to422SP);
 		glUniform1i (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
@@ -693,7 +671,7 @@ void videoRenderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->chromaWidth, info->height, internalType, info),
-			render420to422SP, 1));
+			render420to422SP, 1, 0));
 	}
 
 	// convert 4:2:2 -> 4:4:4
@@ -703,6 +681,8 @@ void videoRenderer::renderInit () {
 
 		shader render422to444Shader (renderVP, render422to444FP, precision, info->halfHeight ? "#define SEPARATE" : "");
 		GLuint render422to444SP = render422to444Shader.loadProgram ();
+		if (!render422to444SP)
+			return false;
 
 		glUseProgram (render422to444SP);
 		glUniform1i (glGetUniformLocation (render422to444SP, "YCbCr"), 0);
@@ -712,7 +692,7 @@ void videoRenderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
-			render422to444SP, 0));
+			render422to444SP, 0, 0));
 	}
 
 	// debanding
@@ -740,6 +720,8 @@ void videoRenderer::renderInit () {
 
 		shader renderBlurXShader (renderVP, renderBlurXFP, precision, blurTaps);
 		GLuint renderBlurXSP = renderBlurXShader.loadProgram ();
+		if (!renderBlurXSP)
+			return false;
 
 		glUseProgram (renderBlurXSP);
 		glUniform1i  (glGetUniformLocation (renderBlurXSP, "video"), 0);
@@ -748,13 +730,15 @@ void videoRenderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
-			renderBlurXSP, 1));
+			renderBlurXSP, 1, 0));
 
 		const char* renderBlurYFP =
 			#include "shaders/blurY.h"
 
 		shader renderBlurYShader (renderVP, renderBlurYFP, precision, blurTaps);
 		GLuint renderBlurYSP = renderBlurYShader.loadProgram ();
+		if (!renderBlurYSP)
+			return false;
 
 		glUseProgram (renderBlurYSP);
 		glUniform1i  (glGetUniformLocation (renderBlurYSP, "video"), 1);
@@ -763,13 +747,15 @@ void videoRenderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
-			renderBlurYSP, 1));
+			renderBlurYSP, 1, 0));
 
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
 
 		shader renderDebandShader (renderVP, renderDebandFP, precision);
 		GLuint renderDebandSP = renderDebandShader.loadProgram ();
+		if (!renderDebandSP)
+			return false;
 
 		glUseProgram (renderDebandSP);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
@@ -779,7 +765,7 @@ void videoRenderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
-			renderDebandSP, 0));
+			renderDebandSP, 0, 0));
 	}
 
 	// convert YCbCr -> RGB
@@ -789,6 +775,8 @@ void videoRenderer::renderInit () {
 
 		shader renderYuvToRgbShader (renderVP, renderYuvToRgbFP, precision);
 		GLuint renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
+		if (!renderYuvToRgbSP)
+			return false;
 
 		glUseProgram (renderYuvToRgbSP);
 		glUniform1i			(glGetUniformLocation (renderYuvToRgbSP, "video"),		0);
@@ -797,9 +785,9 @@ void videoRenderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
-			renderYuvToRgbSP, 0));
+			renderYuvToRgbSP, 0, 0));
 	}
-
+/*
 	// scale width
 	if (info->targetWidth != info->width && !info->hwScale) {
 		GLuint renderScaleWidthSP;
@@ -827,8 +815,38 @@ void videoRenderer::renderInit () {
 			new frameGPUi (info->width, info->targetHeight, internalType, info),
 			renderScaleHeightSP, 0));
 	}
+*/
+	// dither
+	const char* renderDitherFP =
+		#include "shaders/dither.h"
 
-	LOGD ("Rendering chain: OK");
+	shader renderDitherShader (renderVP, renderDitherFP, precision);
+	GLuint renderDitherSP = renderDitherShader.loadProgram ();
+	if (!renderDitherSP)
+		return false;
+
+	glUseProgram (renderDitherSP);
+	glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
+	glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), 3);
+
+	glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
+		(float) (pow (2.0, bitdepth) - 1.0),
+		(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
+	glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
+		(float) ((double) info->targetWidth / 32.0),
+		(float) ((double) info->targetHeight / 32.0));
+
+	#include "ditherMatrix.h"
+
+	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, info);
+	glActiveTexture (GL_TEXTURE0 + 3);
+	glBindTexture (GL_TEXTURE_2D, dither->plane);
+	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);
+	glActiveTexture (GL_TEXTURE0);
+
+	pass.push_back (new renderingPass (
+		dither,	renderDitherSP, 0, glGetUniformLocation (renderDitherSP, "offset")));
+	return true;
 }
 
 void videoRenderer::getGlError () {

@@ -22,9 +22,11 @@
 
 class renderingPass {
 public:
-	renderingPass (frameGPUi* frame, GLuint program, int target);
+	renderingPass (frameGPUi* frame, GLuint program, int target, GLint dither);
 	~renderingPass ();
 	void execute ();
+	void execute (GLuint plane, int targetWidth, int targetHeight);
+	GLint dither;
 
 private:
 	frameGPUi* frame;

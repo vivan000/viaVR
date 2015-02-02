@@ -33,6 +33,6 @@ void main () {
 	pattern = (offset.z == 0.0) ? pattern.rrr : ((offset.z == 1.0) ? pattern.ggg : pattern.bbb);
 	pattern.g = -pattern.g;
 	vec3 preQ = texture (video, coord).rgb * depth.x;
-	vec3 postQ = round (preQ + pattern * 2.0);
+	vec3 postQ = round (preQ + pattern);
 	outColor = vec4 (postQ * depth.y, 1.0);
 })";

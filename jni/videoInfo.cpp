@@ -43,7 +43,7 @@ videoInfo::videoInfo (int videoWidth, int videoHeight, int videoFourCC, int vide
 	// matrix
 	switch (videoMatrix) {
 		case (int) pMatrix::UNKNOWN:
-			matrix = width > 1024 ? pMatrix::BT709 : pMatrix::BT601;
+			matrix = (width > 1024 || height > 576) ? pMatrix::BT709 : pMatrix::BT601;
 			break;
 
 		case (int) pMatrix::BT601:

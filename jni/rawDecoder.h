@@ -29,7 +29,6 @@ private:
 	int sarWidth, sarHeight;
 	int fpsNumerator, fpsDenominator;
 	int range, matrix, fourCC;
-	int bpp;
 
 	int frames;
 	int decoderCount;

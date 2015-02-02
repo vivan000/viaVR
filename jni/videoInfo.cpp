@@ -261,6 +261,34 @@ videoInfo::videoInfo (int videoWidth, int videoHeight, int videoFourCC, int vide
 			return;
 	}
 
+	// bitdepth
+	switch (fourCC) {
+		case pFormat::P008:
+		case pFormat::P208:
+		case pFormat::P408:
+		case pFormat::RGBA:
+		case pFormat::NV12:
+		case pFormat::NV21:
+			bitdepth = 8;
+			break;
+
+		case pFormat::P010:
+		case pFormat::P210:
+		case pFormat::P410:
+			bitdepth = 10;
+			break;
+
+		case pFormat::P016:
+		case pFormat::P216:
+		case pFormat::P416:
+			bitdepth = 16;
+			break;
+
+		default:
+			init = false;
+			return;
+	}
+
 	// chroma size
 	chromaWidth = halfWidth ? width / 2 : width;
 	chromaHeight = halfHeight ? height / 2 : height;

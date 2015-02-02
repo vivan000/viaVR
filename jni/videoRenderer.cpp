@@ -644,14 +644,11 @@ bool videoRenderer::renderInit () {
 	// convert to internal format
 	switch (info->planes) {
 		case 3: {
-			const char* render08ToInternalFP =
-				#include "shaders/planar08ToInternal.h"
-			const char* render16ToInternalFP =
-				#include "shaders/planar16ToInternal.h"
+			const char* renderToInternalFP =
+				#include "shaders/planarToInternal.h"
 
-			shader renderToInternalShader (renderVP,
-				info->lumaFormat == GL_RED ? render08ToInternalFP : render16ToInternalFP,
-				"highp", info->halfWidth && info->hwChroma ? "#define HWCHROMA" : "");
+			shader renderToInternalShader (renderVP, renderToInternalFP,
+				"highp", info->halfWidth && info->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
 			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
 			if (!renderToInternalSP)
 				return false;

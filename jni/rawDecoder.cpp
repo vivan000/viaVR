@@ -17,36 +17,57 @@ rawDecoder::rawDecoder () {
 	sscanf (str, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i C%ip%i XYSCSS=%iP%i\n",
 		&width, &height, &fpsNumerator, &fpsDenominator, &sarWidth, &sarHeight, &subsampling, &bitdepth, &subsampling2, &bitdepth2);
 
-	switch (bitdepth) {
-		case 16:
-		case 10:
-			bitdepth = 16;
-			break;
-		default:
-			bitdepth = 8;
-	}
-
 	switch (subsampling) {
 		case 420:
-			fourCC = bitdepth == 8 ? (int) pFormat::P008 : (int) pFormat::P016;
-			bpp = 12 * bitdepth / 8;
+			switch (bitdepth) {
+				case 16:
+					fourCC = (int) pFormat::P016;
+					break;
+				case 10:
+					fourCC = (int) pFormat::P010;
+					break;
+				default:
+					fourCC = (int) pFormat::P008;
+			}
 			break;
+
 		case 422:
-			fourCC = bitdepth == 8 ? (int) pFormat::P208 : (int) pFormat::P216;
-			bpp = 16 * bitdepth / 8;
+			switch (bitdepth) {
+				case 16:
+					fourCC = (int) pFormat::P216;
+					break;
+				case 10:
+					fourCC = (int) pFormat::P210;
+					break;
+				default:
+					fourCC = (int) pFormat::P208;
+			}
 			break;
+
 		case 444:
-			fourCC = bitdepth == 8 ? (int) pFormat::P408 : (int) pFormat::P416;
-			bpp = 24 * bitdepth / 8;
+			switch (bitdepth) {
+				case 16:
+					fourCC = (int) pFormat::P416;
+					break;
+				case 10:
+					fourCC = (int) pFormat::P410;
+					break;
+				default:
+					fourCC = (int) pFormat::P408;
+			}
 			break;
 	}
+
+	range = 0;
+	matrix = 0;
+	info = new videoInfo (width, height, fourCC, range, matrix);
 
 	if (!sarWidth)
 		sarWidth = 1;
 	if (!sarHeight)
 		sarHeight = 1;
 
-	int size = width * height * bpp / 8;
+	int size = width * height * info->Bpp / 8;
 
 	std::streampos fpos = f.tellg ();
 	frames = (int) ((fsize - fpos) / (size + 6));
@@ -61,10 +82,7 @@ rawDecoder::rawDecoder () {
 
 	f.close ();
 
-	range = 0;
-	matrix = 0;
 	decoderCount = 0;
-	info = new videoInfo (width, height, fourCC, range, matrix);
 }
 
 

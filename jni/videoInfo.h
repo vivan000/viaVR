@@ -77,7 +77,7 @@ public:
 	pMatrix matrix;
 	int width, height;
 
-	int Bpp;
+	int Bpp, bitdepth;
 	bool halfWidth, halfHeight;
 
 	int planes;

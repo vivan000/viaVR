@@ -2,8 +2,6 @@
 
 class IVideoDecoder {
 public:
-	virtual ~IVideoDecoder (){}
-
 	virtual int getNextVideoframe (char* buf, int size) = 0;
 	virtual void seek (int timestamp) = 0;
 
@@ -20,4 +18,7 @@ public:
 	virtual int getRange () = 0;
 	virtual int getMatrix () = 0;
 	virtual int getFourCC () = 0;
+
+protected:
+	virtual ~IVideoDecoder (){}
 };

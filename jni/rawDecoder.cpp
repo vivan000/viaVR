@@ -11,11 +11,11 @@ rawDecoder::rawDecoder () {
 	char str[100];
 	f.getline (str, 100);
 
-	int subsampling, bitdepth;
-	int subsampling2, bitdepth2;
+	int subsampling;
+	int bitdepth = 8;
 
-	sscanf (str, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i C%ip%i XYSCSS=%iP%i\n",
-		&width, &height, &fpsNumerator, &fpsDenominator, &sarWidth, &sarHeight, &subsampling, &bitdepth, &subsampling2, &bitdepth2);
+	sscanf (str, "YUV4MPEG2 W%i H%i F%i:%i Ip A%i:%i C%ip%i",
+		&width, &height, &fpsNumerator, &fpsDenominator, &sarWidth, &sarHeight, &subsampling, &bitdepth);
 
 	switch (subsampling) {
 		case 420:
@@ -26,8 +26,9 @@ rawDecoder::rawDecoder () {
 				case 10:
 					fourCC = (int) pFormat::P010;
 					break;
-				default:
+				case 8:
 					fourCC = (int) pFormat::P008;
+					break;
 			}
 			break;
 
@@ -39,8 +40,9 @@ rawDecoder::rawDecoder () {
 				case 10:
 					fourCC = (int) pFormat::P210;
 					break;
-				default:
+				case 8:
 					fourCC = (int) pFormat::P208;
+					break;
 			}
 			break;
 
@@ -52,8 +54,9 @@ rawDecoder::rawDecoder () {
 				case 10:
 					fourCC = (int) pFormat::P410;
 					break;
-				default:
+				case 8:
 					fourCC = (int) pFormat::P408;
+					break;
 			}
 			break;
 	}
@@ -62,6 +65,10 @@ rawDecoder::rawDecoder () {
 	matrix = 0;
 	info = new videoInfo (width, height, fourCC, range, matrix);
 
+	if (!fpsNumerator)
+		fpsNumerator = 30;
+	if (!fpsDenominator)
+		fpsDenominator = 1;
 	if (!sarWidth)
 		sarWidth = 1;
 	if (!sarHeight)

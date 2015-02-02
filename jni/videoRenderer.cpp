@@ -641,6 +641,8 @@ bool videoRenderer::renderInit () {
 	const char* renderVP =
 		#include "shaders/displayVert.h"
 
+	LOGD ("Rendering chain:");
+
 	// convert to internal format
 	switch (info->planes) {
 		case 3: {
@@ -663,6 +665,7 @@ bool videoRenderer::renderInit () {
 			pass.push_back (new renderingPass (
 				new frameGPUi (info->width, info->height, internalType, info),
 				renderToInternalSP, 0, 0));
+			LOGD ("Planar to internal");
 
 			break;
 		}
@@ -682,6 +685,7 @@ bool videoRenderer::renderInit () {
 			pass.push_back (new renderingPass (
 				new frameGPUi (info->width, info->height, internalType, info),
 				renderToInternalSP, 0, 0));
+			LOGD ("RGBA to internal");
 
 			break;
 		}
@@ -706,6 +710,7 @@ bool videoRenderer::renderInit () {
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->chromaWidth, info->height, internalType, info),
 			render420to422SP, 1, 0));
+		LOGD ("Upsample chroma height");
 	}
 
 	// convert 4:2:2 -> 4:4:4
@@ -727,6 +732,7 @@ bool videoRenderer::renderInit () {
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
 			render422to444SP, 0, 0));
+		LOGD ("Upsample chroma width");
 	}
 
 	// debanding
@@ -765,6 +771,7 @@ bool videoRenderer::renderInit () {
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
 			renderBlurXSP, 1, 0));
+		LOGD ("Debanding: blur width");
 
 		const char* renderBlurYFP =
 			#include "shaders/blurY.h"
@@ -782,6 +789,7 @@ bool videoRenderer::renderInit () {
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
 			renderBlurYSP, 1, 0));
+		LOGD ("Debanding: blur height");
 
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
@@ -800,6 +808,7 @@ bool videoRenderer::renderInit () {
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
 			renderDebandSP, 0, 0));
+		LOGD ("Debanding: debanding");
 	}
 
 	// convert YCbCr -> RGB
@@ -820,6 +829,7 @@ bool videoRenderer::renderInit () {
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, internalType, info),
 			renderYuvToRgbSP, 0, 0));
+		LOGD ("YCbCr -> RGB conversion");
 	}
 /*
 	// scale width
@@ -880,6 +890,8 @@ bool videoRenderer::renderInit () {
 
 	pass.push_back (new renderingPass (
 		dither,	renderDitherSP, 0, glGetUniformLocation (renderDitherSP, "offset")));
+	LOGD ("Dither");
+
 	return true;
 }
 

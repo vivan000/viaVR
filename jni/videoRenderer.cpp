@@ -45,14 +45,18 @@ videoRenderer::~videoRenderer () {
 		decodeThread.join ();
 		uploadThread.join ();
 		renderThread.join ();
+		drawThread.join ();
 
 		delete decodeQueue;
 		delete uploadQueue;
 		delete renderQueue;
 
-		delete displayCurr;
+		eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
+		delete displayCurr;
 		glDeleteBuffers (3, vboIds);
+
+		eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 		delContexts ();
 	}
@@ -113,11 +117,122 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	return true;
 }
 
+bool videoRenderer::addWindow (ANativeWindow* window) {
+	const EGLint attribListWindowCfg[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_BLUE_SIZE, 8,
+		EGL_GREEN_SIZE, 8,
+		EGL_RED_SIZE, 8,
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_CONFORMANT, EGL_OPENGL_ES2_BIT,
+		EGL_NONE};
+
+	const EGLint attribListPbufCfg[] = {
+		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+		EGL_NONE};
+
+	const EGLint attribListContext[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 3,
+		EGL_NONE};
+
+	const EGLint attribListPbufSrf[] = {
+		EGL_WIDTH, 1,
+		EGL_HEIGHT, 1,
+		EGL_NONE};
+
+	EGLConfig config;
+	EGLint numConfigs;
+	EGLint format;
+
+	display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
+	if (display == EGL_NO_DISPLAY) {
+		LOGE ("GetDisplay error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	if (!eglInitialize (display, 0, 0)) {
+		LOGE ("Initialize error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	if (!eglChooseConfig (display, attribListWindowCfg, &config, 1, &numConfigs)) {
+		LOGE ("ChooseConfig error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	if (!eglGetConfigAttrib (display, config, EGL_NATIVE_VISUAL_ID, &format)) {
+		LOGE ("GetConfigAttrib error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	ANativeWindow_setBuffersGeometry (window, 0, 0, format);
+
+	mainSurface = eglCreateWindowSurface (display, config, window, 0);
+	if (!mainSurface) {
+		LOGE ("CreateWindowSurface error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	mainContext = eglCreateContext (display, config, 0, attribListContext);
+	if (!mainContext) {
+		LOGE ("CreateContext error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	if (!eglMakeCurrent (display, mainSurface, mainSurface, mainContext)) {
+		LOGE ("MakeCurrent error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	if (!eglQuerySurface (display, mainSurface, EGL_WIDTH, &surfaceWidth) ||
+		!eglQuerySurface (display, mainSurface, EGL_HEIGHT, &surfaceHeight)) {
+		LOGE ("QuerySurface error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	if (!eglChooseConfig (display, attribListPbufCfg, &config, 1, &numConfigs)) {
+		LOGE ("Pbuffer ChooseConfig error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	uploadPbuffer = eglCreatePbufferSurface (display, config, attribListPbufSrf);
+	if (!uploadPbuffer) {
+		LOGE ("Upload pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	uploadContext = eglCreateContext (display, config, mainContext, attribListContext);
+	if (!uploadContext) {
+		LOGE ("Upload pbuffer CreateContext error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	renderPbuffer = eglCreatePbufferSurface (display, config, attribListPbufSrf);
+	if (!renderPbuffer) {
+		LOGE ("Render pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	renderContext = eglCreateContext (display, config, mainContext, attribListContext);
+	if (!renderContext) {
+		LOGE ("Render pbuffer CreateContext error: %s", getEglErrorStr ());
+		return false;
+	}
+
+	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
+	glDisable (GL_DITHER);
+
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	return true;
+}
+
 void videoRenderer::setRefreshRate (int fps) {
 	displayRefreshRate = fps;
 }
 
 bool videoRenderer::init () {
+	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
+
 	srand (time (NULL));
 
 	// check version
@@ -131,7 +246,6 @@ bool videoRenderer::init () {
 		return false;
 	LOGD ("Video decoder: OK");
 
-	genContexts ();
 	setAspect ();
 
 	// check extenions
@@ -220,6 +334,8 @@ bool videoRenderer::init () {
 
 	initialized = true;
 	LOGD ("Initialization: OK");
+
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	return true;
 }
 
@@ -283,19 +399,14 @@ bool videoRenderer::checkExtensions () {
 }
 
 void videoRenderer::setAspect () {
-	int rectangle[4];
-	glGetIntegerv (GL_VIEWPORT, rectangle);
-	int surfaceWidth = rectangle[2] - rectangle[0];
-	int surfaceHeight = rectangle[3] - rectangle[1];
-
 	int mode = 1;
 	switch (mode) {
 		// stretch
 		case 0:
 			info->targetX = 0;
 			info->targetY = 0;
-			info->targetWidth = info->width;
-			info->targetHeight = info->height;
+			info->targetWidth = surfaceWidth;
+			info->targetHeight = surfaceHeight;
 			break;
 
 		// touch from inside
@@ -332,74 +443,57 @@ void videoRenderer::setAspect () {
 	glViewport (info->targetX, info->targetY, info->targetWidth, info->targetHeight);
 }
 
-void videoRenderer::genContexts () {
-	mainContext = eglGetCurrentContext ();
-	mainSurface = eglGetCurrentSurface (EGL_DRAW);
-	display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
-
-	EGLConfig config;
-	EGLint numConfigs;
-	EGLint attribListCfg[] = {EGL_SURFACE_TYPE, EGL_PBUFFER_BIT, EGL_NONE};
-	EGLint attribListCtx[] = {EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
-	EGLint attribListSrf[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
-	eglChooseConfig (display, attribListCfg, &config, 1, &numConfigs);
-
-	uploadContext = eglCreateContext (display, config, mainContext, attribListCtx);
-	uploadPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
-
-	renderContext = eglCreateContext (display, config, mainContext, attribListCtx);
-	renderPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
-
-}
-
 void videoRenderer::delContexts () {
-	eglDestroySurface (display, uploadPBuffer);
+	eglDestroySurface (display, uploadPbuffer);
 	eglDestroyContext (display, uploadContext);
 
-	eglDestroySurface (display, renderPBuffer);
+	eglDestroySurface (display, renderPbuffer);
 	eglDestroyContext (display, renderContext);
+
+	eglDestroySurface (display, mainSurface);
+	eglDestroyContext (display, mainContext);
 }
 
 void videoRenderer::drawFrame () {
-	glClear (GL_COLOR_BUFFER_BIT);
+	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
-	if (initialized) {
-		if (playing) {
-			int tc = tcNow ();
-			while (repeat <= 0) {
-				getNextFrame (displayCurr);
-			}
+	while (playing) {
+		glClear (GL_COLOR_BUFFER_BIT);
 
-			if (displayCurr->timecode < tc + softLate) {
-				if (displayCurr->timecode < tc + hardLate) {
-					// if very late - drop current frame
-					LOGI ("hard drop (repeat: %i)", repeat / videoFps);
-					repeat -= videoFps;
-				} else if (newFrame && (repeat >= displayRefreshRate)) {
-					// if just a bit late - try to find best frame to drop (that is repeated more times than others)
-					LOGD ("soft drop (repeat: %i)", repeat / videoFps);
-					repeat -= videoFps;
-				}
-			} else if (displayCurr->timecode > tc + softEarly) {
-				if (displayCurr->timecode > tc + hardEarly) {
-					// if very early - repeat current frame
-					LOGI ("hard repeat (repeat: %i)", repeat / videoFps);
-					repeat += videoFps;
-				} else if (newFrame && (repeat <= repeatLim)) {
-					// if just a bit early - try to find best frame to repeat (that is repeated less times than others)
-					LOGD ("soft repeat (repeat: %i)", repeat / videoFps);
-					repeat += videoFps;
-				}
-			}
-
-			presentFrame (displayCurr);
-			if (uploadQueue->isEmpty () && !uploading)
-				playing = false;
-		} else {
-			glBindTexture (GL_TEXTURE_2D, displayCurr->plane);
-			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+		int tc = tcNow ();
+		while (repeat <= 0) {
+			getNextFrame (displayCurr);
 		}
+
+		if (displayCurr->timecode < tc + softLate) {
+			if (displayCurr->timecode < tc + hardLate) {
+				// if very late - drop current frame
+				LOGI ("hard drop (repeat: %i)", repeat / videoFps);
+				repeat -= videoFps;
+			} else if (newFrame && (repeat >= displayRefreshRate)) {
+				// if just a bit late - try to find best frame to drop (that is repeated more times than others)
+				LOGD ("soft drop (repeat: %i)", repeat / videoFps);
+				repeat -= videoFps;
+			}
+		} else if (displayCurr->timecode > tc + softEarly) {
+			if (displayCurr->timecode > tc + hardEarly) {
+				// if very early - repeat current frame
+				LOGI ("hard repeat (repeat: %i)", repeat / videoFps);
+				repeat += videoFps;
+			} else if (newFrame && (repeat <= repeatLim)) {
+				// if just a bit early - try to find best frame to repeat (that is repeated less times than others)
+				LOGD ("soft repeat (repeat: %i)", repeat / videoFps);
+				repeat += videoFps;
+			}
+		}
+
+		presentFrame (displayCurr);
+		if (uploadQueue->isEmpty () && !uploading)
+			playing = false;
+		eglSwapBuffers (display, mainSurface);
 	}
+
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void videoRenderer::presentFrame (frameGPUo* f) {
@@ -473,10 +567,14 @@ void videoRenderer::play (int timecode) {
 	repeat = 0;
 	frameNumber = 0;
 	playing = true;
+
+	drawThread = std::thread (&videoRenderer::drawFrame, this);
 }
 
 void videoRenderer::pause () {
 	playing = false;
+
+	drawThread.join ();
 }
 
 void videoRenderer::decode () {
@@ -516,7 +614,7 @@ void videoRenderer::decode () {
 }
 
 void videoRenderer::upload () {
-	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer, uploadContext);
+	eglMakeCurrent (display, uploadPbuffer, uploadPbuffer, uploadContext);
 
 	if (!uploadSeeking) {
 		uploadFrom = new frameCPU (info);
@@ -567,7 +665,7 @@ void videoRenderer::upload () {
 }
 
 void videoRenderer::render () {
-	eglMakeCurrent (display, renderPBuffer, renderPBuffer, renderContext);
+	eglMakeCurrent (display, renderPbuffer, renderPbuffer, renderContext);
 
 	if (!renderSeeking) {
 		if (renderInit ())
@@ -938,4 +1036,41 @@ void videoRenderer::getFbStatus () {
 			LOGE ("Framebuffer: GL_FRAMEBUFFER_UNSUPPORTED");
 			break;
 	};
+}
+
+const char* videoRenderer::getEglErrorStr () {
+	switch (eglGetError ()) {
+		case EGL_SUCCESS:
+			return "EGL_SUCCESS";
+		case EGL_NOT_INITIALIZED:
+			return "EGL_NOT_INITIALIZED";
+		case EGL_BAD_ACCESS:
+			return "EGL_BAD_ACCESS";
+		case EGL_BAD_ALLOC:
+			return "EGL_BAD_ALLOC";
+		case EGL_BAD_ATTRIBUTE:
+			return "EGL_BAD_ATTRIBUTE";
+		case EGL_BAD_CONTEXT:
+			return "EGL_BAD_CONTEXT";
+		case EGL_BAD_CONFIG:
+			return "EGL_BAD_CONFIG";
+		case EGL_BAD_CURRENT_SURFACE:
+			return "EGL_BAD_CURRENT_SURFACE";
+		case EGL_BAD_DISPLAY:
+			return "EGL_BAD_DISPLAY";
+		case EGL_BAD_SURFACE:
+			return "EGL_BAD_SURFACE";
+		case EGL_BAD_MATCH:
+			return "EGL_BAD_MATCH";
+		case EGL_BAD_PARAMETER:
+			return "EGL_BAD_PARAMETER";
+		case EGL_BAD_NATIVE_PIXMAP:
+			return "EGL_BAD_NATIVE_PIXMAP";
+		case EGL_BAD_NATIVE_WINDOW:
+			return "EGL_BAD_NATIVE_WINDOW";
+		case EGL_CONTEXT_LOST:
+			return "EGL_CONTEXT_LOST";
+	}
+
+	return "Unknown EGL error";
 }

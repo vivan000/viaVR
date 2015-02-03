@@ -37,10 +37,9 @@ public:
 	~videoRenderer ();
 
 	bool addVideoDecoder (IVideoDecoder* video);
+	bool addWindow (ANativeWindow* window);
 	void setRefreshRate (int fps);
 	bool init ();
-
-	void drawFrame ();
 
 	void seek (int timecode);
 	void play (int timecode);
@@ -60,6 +59,7 @@ private:
 	void genContexts ();
 	void delContexts ();
 
+	void drawFrame ();
 	void presentFrame (frameGPUo* f);
 	void getNextFrame (frameGPUo* f);
 
@@ -70,6 +70,7 @@ private:
 	bool renderInit ();
 	void getGlError ();
 	void getFbStatus ();
+	const char* getEglErrorStr ();
 
 	// video config
 	IVideoDecoder* video;
@@ -86,16 +87,19 @@ private:
 	std::thread decodeThread;
 	std::thread uploadThread;
 	std::thread renderThread;
+	std::thread drawThread;
+
+	EGLDisplay display;
+
+	EGLSurface mainSurface;
+	EGLSurface uploadPbuffer;
+	EGLSurface renderPbuffer;
 
 	EGLContext mainContext;
 	EGLContext uploadContext;
 	EGLContext renderContext;
 
-	EGLDisplay display;
-
-	EGLSurface mainSurface;
-	EGLSurface uploadPBuffer;
-	EGLSurface renderPBuffer;
+	EGLint surfaceWidth, surfaceHeight;
 
 	int precisionTex = 0;
 	bool precisionHighp = true;

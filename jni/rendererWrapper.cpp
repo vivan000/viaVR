@@ -1,27 +1,39 @@
+#include <jni.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include "rendererWrapper.h"
 #include "IVideoRenderer.h"
 #include "videoRenderer.h"
 #include "rawDecoder.h"
 
-IVideoRenderer* r;
-rawDecoder video;
+static ANativeWindow* window = 0;
+static IVideoRenderer* r = 0;
+static rawDecoder video;
 
-void on_surface_created () {
-	if (r) {
-		delete r;
-		r = NULL;
-	}
-	r = new videoRenderer;
-	r->addVideoDecoder (&video);
-	video.seek (0);
-	r->init ();
-	r->play (0);
-};
-
-void on_surface_changed (int width, int height) {
+JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnStart (JNIEnv* jenv, jobject obj) {
 }
 
-void on_draw_frame () {
-	if (r)
-		r->drawFrame ();
+JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnResume (JNIEnv* jenv, jobject obj) {
+}
+
+JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnPause (JNIEnv* jenv, jobject obj) {
+}
+
+JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnStop (JNIEnv* jenv, jobject obj) {
+}
+
+JNIEXPORT void Java_vivan_viavr_MainActivity_nativeSetSurface (JNIEnv* jenv, jobject obj, jobject surface) {
+	if (surface) {
+		window = ANativeWindow_fromSurface (jenv, surface);
+		video.seek (0);
+		r = new videoRenderer;
+		r->addWindow (window);
+		r->addVideoDecoder (&video);
+		r->init ();
+		r->play (0);
+	} else {
+		delete r;
+		r = 0;
+		ANativeWindow_release (window);
+	}
 }

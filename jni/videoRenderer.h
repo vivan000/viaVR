@@ -111,7 +111,7 @@ private:
 	int frameNumber, presentedFrames;
 	int hardLate, softLate, softEarly, hardEarly;
 
-	int prev;
+	int64_t prev, prev2;
 
 	GLuint vboIds[3];
 

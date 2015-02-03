@@ -366,7 +366,6 @@ void videoRenderer::delContexts () {
 }
 
 void videoRenderer::drawFrame () {
-	glFinish ();
 	glClear (GL_COLOR_BUFFER_BIT);
 
 	if (initialized) {
@@ -375,29 +374,29 @@ void videoRenderer::drawFrame () {
 			while (repeat <= 0) {
 				getNextFrame (displayCurr);
 			}
-/*
+
 			if (displayCurr->timecode < tc + softLate) {
 				if (displayCurr->timecode < tc + hardLate) {
 					// if very late - drop current frame
-					LOGD ("hard drop (repeat: %i)", repeat);
+					LOGI ("hard drop (repeat: %i)", repeat / videoFps);
 					repeat -= videoFps;
-				} else if (newFrame && (repeat >= repeatLim)) {
+				} else if (newFrame && (repeat >= displayRefreshRate)) {
 					// if just a bit late - try to find best frame to drop (that is repeated more times than others)
-					LOGD ("soft drop (repeat: %i)", repeat);
+					LOGD ("soft drop (repeat: %i)", repeat / videoFps);
 					repeat -= videoFps;
 				}
 			} else if (displayCurr->timecode > tc + softEarly) {
 				if (displayCurr->timecode > tc + hardEarly) {
 					// if very early - repeat current frame
-					LOGD ("hard repeat (repeat: %i)", repeat);
+					LOGI ("hard repeat (repeat: %i)", repeat / videoFps);
 					repeat += videoFps;
 				} else if (newFrame && (repeat <= repeatLim)) {
 					// if just a bit early - try to find best frame to repeat (that is repeated less times than others)
-					LOGD ("soft repeat (repeat: %i)", repeat);
+					LOGD ("soft repeat (repeat: %i)", repeat / videoFps);
 					repeat += videoFps;
 				}
 			}
-*/
+
 			presentFrame (displayCurr);
 			if (uploadQueue->isEmpty () && !uploading)
 				playing = false;
@@ -409,10 +408,18 @@ void videoRenderer::drawFrame () {
 }
 
 void videoRenderer::presentFrame (frameGPUo* f) {
-	// LOGD ("queue stats: dec %i up %i rend %i", decodeQueue->getSize(), uploadQueue->getSize (), renderQueue->getSize());
-	int t = tcNow ();
-	LOGD ("frame %3i timecode %5i now %5i (+%2i) repeat %2i", frameNumber, f->timecode, t, t - prev, repeat);
-	prev = t;
+	int64_t now = nanotime ();
+	double deltaPrev = (now - prev) / 1000000.0;
+	double deltaPrev2 = (now - prev2) / 1000000.0;
+	prev2 = prev;
+	prev = now;
+
+	if (presentedFrames > 1) {
+		if (deltaPrev2 >= 50.0)
+			LOGE ("display drop");
+		LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
+			frameNumber, f->timecode, tcNow (), deltaPrev, deltaPrev2, repeat);
+	}
 
 	glBindTexture (GL_TEXTURE_2D, f->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);

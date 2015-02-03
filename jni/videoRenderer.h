@@ -23,8 +23,7 @@
 #include <EGL/egl.h>
 #include <thread>
 #include <vector>
-#include "IVideoRenderer.h"
-#include "IVideoDecoder.h"
+#include "interfaces/IVideoRenderer.h"
 #include "frames.h"
 #include "queue.h"
 #include "renderingPass.h"

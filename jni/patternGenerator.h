@@ -1,4 +1,4 @@
-#include "IVideoDecoder.h"
+#include "interfaces/IVideoDecoder.h"
 
 class patternGenerator: public IVideoDecoder {
 public:

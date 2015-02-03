@@ -1,6 +1,6 @@
 #pragma once
-#include "IVideoDecoder.h"
 #include <android/native_window.h>
+#include "interfaces/IVideoDecoder.h"
 
 class IVideoRenderer {
 public:

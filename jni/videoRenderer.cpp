@@ -335,7 +335,6 @@ void videoRenderer::setAspect () {
 void videoRenderer::genContexts () {
 	mainContext = eglGetCurrentContext ();
 	mainSurface = eglGetCurrentSurface (EGL_DRAW);
-	mainSurface2 = eglGetCurrentSurface (EGL_READ);
 	display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
 
 	EGLConfig config;
@@ -347,21 +346,17 @@ void videoRenderer::genContexts () {
 
 	uploadContext = eglCreateContext (display, config, mainContext, attribListCtx);
 	uploadPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
-	uploadPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
 
 	renderContext = eglCreateContext (display, config, mainContext, attribListCtx);
 	renderPBuffer = eglCreatePbufferSurface (display, config, attribListSrf);
-	renderPBuffer2 = eglCreatePbufferSurface (display, config, attribListSrf);
 
 }
 
 void videoRenderer::delContexts () {
 	eglDestroySurface (display, uploadPBuffer);
-	eglDestroySurface (display, uploadPBuffer2);
 	eglDestroyContext (display, uploadContext);
 
 	eglDestroySurface (display, renderPBuffer);
-	eglDestroySurface (display, renderPBuffer2);
 	eglDestroyContext (display, renderContext);
 }
 
@@ -521,7 +516,7 @@ void videoRenderer::decode () {
 }
 
 void videoRenderer::upload () {
-	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer2, uploadContext);
+	eglMakeCurrent (display, uploadPBuffer, uploadPBuffer, uploadContext);
 
 	if (!uploadSeeking) {
 		uploadFrom = new frameCPU (info);
@@ -572,7 +567,7 @@ void videoRenderer::upload () {
 }
 
 void videoRenderer::render () {
-	eglMakeCurrent (display, renderPBuffer, renderPBuffer2, renderContext);
+	eglMakeCurrent (display, renderPBuffer, renderPBuffer, renderContext);
 
 	if (!renderSeeking) {
 		if (renderInit ())

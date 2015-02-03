@@ -93,9 +93,9 @@ private:
 
 	EGLDisplay display;
 
-	EGLSurface mainSurface, mainSurface2;
-	EGLSurface uploadPBuffer, uploadPBuffer2;
-	EGLSurface renderPBuffer, renderPBuffer2;
+	EGLSurface mainSurface;
+	EGLSurface uploadPBuffer;
+	EGLSurface renderPBuffer;
 
 	int precisionTex = 0;
 	bool precisionHighp = true;

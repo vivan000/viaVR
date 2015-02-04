@@ -1,4 +1,4 @@
-#include "interfaces/IVideoDecoder.h"
+#include "IVideoDecoder.h"
 #include "videoInfo.h"
 
 class rawDecoder: public IVideoDecoder {

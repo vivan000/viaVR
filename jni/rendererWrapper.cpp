@@ -2,7 +2,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include "rendererWrapper.h"
-#include "IVideoRenderer.h"
+#include "interface/IVideoRenderer.h"
 #include "videoRenderer.h"
 #include "rawDecoder.h"
 

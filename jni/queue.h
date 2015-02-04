@@ -17,6 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
+#pragma once
 #include <mutex>
 
 template <class T>
@@ -81,8 +82,10 @@ void queue<T>::pop (T* f) {
 
 template <class T>
 void queue<T>::flush () {
+	_lock.lock ();
 	first = 0;
 	size = 0;
+	_lock.unlock ();
 }
 
 template <class T>

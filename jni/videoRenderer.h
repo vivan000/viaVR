@@ -18,17 +18,14 @@
  */
 
 #pragma once
-
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
 #include <thread>
 #include <vector>
 #include "interface/IVideoRenderer.h"
 #include "frames.h"
+#include "threads.h"
 #include "queue.h"
-#include "renderingPass.h"
-
-typedef std::vector<renderingPass*> rPass;
 
 class videoRenderer: public IVideoRenderer {
 public:
@@ -62,10 +59,6 @@ private:
 	void presentFrame (frameGPUo* f);
 	void getNextFrame (frameGPUo* f);
 
-	void upload ();
-	void decode ();
-	void render ();
-
 	bool renderInit ();
 	void getGlError ();
 	void getFbStatus ();
@@ -77,15 +70,12 @@ private:
 	int videoSarWidth, videoSarHeight;
 	int videoFps;
 
-	bool decoding, uploading, rendering, playing;
+	bool playing;
 
 	queue<frameCPU>* decodeQueue;
 	queue<frameGPUu>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
 
-	std::thread decodeThread;
-	std::thread uploadThread;
-	std::thread renderThread;
 	std::thread drawThread;
 
 	EGLDisplay display;
@@ -118,20 +108,7 @@ private:
 
 	GLuint vboIds[3];
 
-	rPass pass;
-	pFormat internalType;
-	const char* precision = "highp";
-	int bitdepth;
-
-	bool decodeSeeking;
-	bool uploadSeeking;
-	bool renderSeeking;
-
-	frameCPU*  decodeTo;
-	frameCPU*  uploadFrom;
-	frameGPUu* uploadTo;
-	frameGPUu* renderFrom;
-	frameGPUo* renderTo;
-
-	GLuint framebuffer;
+	decoder* decodeO;
+	uploader* uploadO;
+	renderer* renderO;
 };

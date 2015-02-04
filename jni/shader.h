@@ -17,6 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
+#pragma once
 #include <GLES3/gl3.h>
 
 class shader {

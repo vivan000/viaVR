@@ -30,28 +30,24 @@ videoRenderer::videoRenderer () {
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
 	glClear (GL_COLOR_BUFFER_BIT);
 	initialized = false;
-
-	internalType = pFormat::INT10;
-	bitdepth = 8;
 }
 
 videoRenderer::~videoRenderer () {
+	LOGD ("Destroing videoRenderer");
 	if (initialized) {
-		decoding = false;
-		uploading = false;
-		rendering = false;
 		playing = false;
 
-		decodeThread.join ();
-		uploadThread.join ();
-		renderThread.join ();
+		delete decodeO;
+		delete uploadO;
+		delete renderO;
+
 		drawThread.join ();
+
+		eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
 		delete decodeQueue;
 		delete uploadQueue;
 		delete renderQueue;
-
-		eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
 		delete displayCurr;
 		glDeleteBuffers (3, vboIds);
@@ -306,17 +302,15 @@ bool videoRenderer::init () {
 	LOGD ("Display shader: OK");
 
 	// start threads
-	decodeSeeking = false;
 	decodeQueue = new queue<frameCPU> (8, info);
-	decodeThread = std::thread (&videoRenderer::decode, this);
-
-	uploadSeeking = false;
 	uploadQueue = new queue<frameGPUu> (8, info);
-	uploadThread = std::thread (&videoRenderer::upload, this);
-
-	renderSeeking = false;
 	renderQueue = new queue<frameGPUo> (8, info);
-	renderThread = std::thread (&videoRenderer::render, this);
+
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	decodeO = new decoder (info, decodeQueue, video);
+	uploadO = new uploader (info, decodeQueue, uploadQueue, display, uploadPbuffer, uploadContext);
+	renderO = new renderer (info, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
+	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
 	// wait till there's at least 1 frame to show
 	while (renderQueue->isEmpty ()) {
@@ -488,8 +482,7 @@ void videoRenderer::drawFrame () {
 		}
 
 		presentFrame (displayCurr);
-		if (uploadQueue->isEmpty () && !uploading)
-			playing = false;
+
 		eglSwapBuffers (display, mainSurface);
 	}
 
@@ -505,9 +498,9 @@ void videoRenderer::presentFrame (frameGPUo* f) {
 
 	if (presentedFrames > 1) {
 		if (deltaPrev2 >= 50.0)
-			LOGE ("display drop");
-		LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
-			frameNumber, f->timecode, tcNow (), deltaPrev, deltaPrev2, repeat);
+			LOGE ("display drop %5.2f ms", deltaPrev2);
+		//LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
+		//	frameNumber, f->timecode, tcNow (), deltaPrev, deltaPrev2, repeat);
 	}
 
 	glBindTexture (GL_TEXTURE_2D, f->plane);
@@ -532,19 +525,10 @@ void videoRenderer::getNextFrame (frameGPUo* f) {
 
 void videoRenderer::seek (int timestamp) {
 	if (initialized) {
-		decodeSeeking = true;
-		uploadSeeking = true;
-		renderSeeking = true;
-
 		// stop everything
-		decoding = false;
-		uploading = false;
-		rendering = false;
-		playing = false;
-
-		decodeThread.join ();
-		uploadThread.join ();
-		renderThread.join ();
+		decodeO->stop ();
+		uploadO->stop ();
+		renderO->stop ();
 
 		// flush queues
 		decodeQueue->flush();
@@ -555,9 +539,9 @@ void videoRenderer::seek (int timestamp) {
 		video->seek (timestamp);
 
 		// restart threads
-		decodeThread = std::thread (&videoRenderer::decode, this);
-		uploadThread = std::thread (&videoRenderer::upload, this);
-		renderThread = std::thread (&videoRenderer::render, this);
+		decodeO->start ();
+		uploadO->start ();
+		renderO->start ();
 	}
 }
 
@@ -575,424 +559,6 @@ void videoRenderer::pause () {
 	playing = false;
 
 	drawThread.join ();
-}
-
-void videoRenderer::decode () {
-	if (!decodeSeeking) {
-		decodeTo = new frameCPU (info);
-
-		decodeSeeking = false;
-	}
-
-	int size = info->width * info->height * info->Bpp / 8;
-
-	decoding = true;
-	while (decoding) {
-		if (!decodeQueue->isFull ()) {
-			decodeTo->timecode = video->getNextVideoframe (decodeTo->plane, size);
-
-			switch (decodeTo->timecode) {
-				case -1:
-					// stop playback
-					decoding = false;
-					break;
-				case -2:
-					// try later
-					usleep (10000);
-					break;
-				default:
-					decodeQueue->push (decodeTo);
-			}
-		} else {
-			usleep (10000);
-		}
-	}
-
-	if (!decodeSeeking) {
-		delete decodeTo;
-	}
-}
-
-void videoRenderer::upload () {
-	eglMakeCurrent (display, uploadPbuffer, uploadPbuffer, uploadContext);
-
-	if (!uploadSeeking) {
-		uploadFrom = new frameCPU (info);
-		uploadTo = new frameGPUu (info);
-
-		uploadSeeking = false;
-	}
-
-	uploading = true;
-	while (uploading) {
-		if (!decodeQueue->isEmpty () && !uploadQueue->isFull ()) {
-			decodeQueue->pop (uploadFrom);
-
-			uploadTo->timecode = uploadFrom->timecode;
-
-			glBindTexture (GL_TEXTURE_2D, uploadTo->plane[0]);
-			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->width, info->height,
-				info->lumaFormat, info->lumaType, (GLvoid*) uploadFrom->plane);
-
-			if (info->planes > 1) {
-				glBindTexture (GL_TEXTURE_2D, uploadTo->plane[1]);
-				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
-					info->chromaFormat, info->chromaType, (GLvoid*) (uploadFrom->plane + info->offset1));
-			}
-
-			if (info->planes > 2) {
-				glBindTexture (GL_TEXTURE_2D, uploadTo->plane[2]);
-				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
-					info->chromaFormat, info->chromaType, (GLvoid*) (uploadFrom->plane + info->offset2));
-			}
-
-			glFlush ();
-
-			uploadQueue->push (uploadTo);
-		} else if (decodeQueue->isEmpty () && !decoding) {
-			uploading = false;
-		} else {
-			usleep (10000);
-		}
-	}
-
-	if (!uploadSeeking) {
-		delete uploadFrom;
-		delete uploadTo;
-	}
-
-	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-}
-
-void videoRenderer::render () {
-	eglMakeCurrent (display, renderPbuffer, renderPbuffer, renderContext);
-
-	if (!renderSeeking) {
-		if (renderInit ())
-			LOGD ("Rendering chain: OK");
-		else {
-			for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
-				delete *passIt;
-			return;
-		}
-
-		glGenFramebuffers (1, &framebuffer);
-		glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-
-		renderFrom = new frameGPUu (info);
-		renderTo = new frameGPUo (info);
-
-		renderSeeking = false;
-	}
-
-	rendering = true;
-	while (rendering) {
-		if (!uploadQueue->isEmpty () && !renderQueue->isFull ()) {
-			uploadQueue->pop (renderFrom);
-
-			renderTo->timecode = renderFrom->timecode;
-
-			for (int i = 0; i < info->planes; i++) {
-				glActiveTexture (GL_TEXTURE0 + i);
-				glBindTexture (GL_TEXTURE_2D, renderFrom->plane[i]);
-			}
-
-			for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
-				if (!(*passIt)->dither)
-					(*passIt)->execute ();
-				else
-					(*passIt)->execute (renderTo->plane, info->targetWidth, info->targetHeight);
-
-			glFlush ();
-
-			renderQueue->push (renderTo);
-		} else if (uploadQueue->isEmpty () && !uploading) {
-			rendering = false;
-		} else {
-			usleep (10000);
-		}
-	}
-
-	if (!renderSeeking) {
-		for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
-			delete *passIt;
-
-		delete renderFrom;
-		delete renderTo;
-
-		glDeleteFramebuffers (1, &framebuffer);
-	}
-
-	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-}
-
-bool videoRenderer::renderInit () {
-	// enable coordinates
-	const GLuint vertexCoordLoc = 0;
-	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
-	glVertexAttribPointer (vertexCoordLoc, 4, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (vertexCoordLoc);
-
-	const GLuint textureCoordLoc = 1;
-	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
-	glVertexAttribPointer (textureCoordLoc, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray (textureCoordLoc);
-
-	const char* renderVP =
-		#include "shaders/displayVert.h"
-
-	LOGD ("Rendering chain:");
-
-	// convert to internal format
-	switch (info->planes) {
-		case 3: {
-			const char* renderToInternalFP =
-				#include "shaders/planarToInternal.h"
-
-			shader renderToInternalShader (renderVP, renderToInternalFP,
-				"highp", info->halfWidth && info->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
-			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
-			if (!renderToInternalSP)
-				return false;
-
-			glUseProgram (renderToInternalSP);
-			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
-			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
-			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
-			if (info->halfWidth && info->hwChroma)
-				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
-
-			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, internalType, info),
-				renderToInternalSP, 0, 0));
-			LOGD ("Planar to internal");
-
-			break;
-		}
-
-		case 1: {
-			const char* renderRgbToInteralFP =
-				#include "shaders/displayFrag.h"
-
-			shader renderToInternalShader (renderVP, renderRgbToInteralFP, "highp");
-			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
-			if (!renderToInternalSP)
-				return false;
-
-			glUseProgram (renderToInternalSP);
-			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"), 0);
-
-			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, internalType, info),
-				renderToInternalSP, 0, 0));
-			LOGD ("RGBA to internal");
-
-			break;
-		}
-	}
-
-	// convert 4:2:0 -> 4:2:2
-	if (info->halfHeight && !info->hwChroma) {
-		const char* render420to422FP =
-			#include "shaders/up420to422.h"
-
-		shader render420to422Shader (renderVP, render420to422FP, precision);
-		GLuint render420to422SP = render420to422Shader.loadProgram ();
-		if (!render420to422SP)
-			return false;
-
-		glUseProgram (render420to422SP);
-		glUniform1i (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
-		glUniform4f (glGetUniformLocation (render420to422SP, "pitch"),
-			(float) ( 2.0 / info->height), (float) (1.0 / info->height),
-			(float) (-0.5 / info->height), (float) (0.5 * info->height));
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->chromaWidth, info->height, internalType, info),
-			render420to422SP, 1, 0));
-		LOGD ("Upsample chroma height");
-	}
-
-	// convert 4:2:2 -> 4:4:4
-	if (info->halfWidth && !info->hwChroma) {
-		const char* render422to444FP =
-			#include "shaders/up422to444.h"
-
-		shader render422to444Shader (renderVP, render422to444FP, precision, info->halfHeight ? "#define SEPARATE" : "");
-		GLuint render422to444SP = render422to444Shader.loadProgram ();
-		if (!render422to444SP)
-			return false;
-
-		glUseProgram (render422to444SP);
-		glUniform1i (glGetUniformLocation (render422to444SP, "YCbCr"), 0);
-		if (info->halfHeight)
-			glUniform1i (glGetUniformLocation (render422to444SP, "CbCr"), 1);
-		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
-			render422to444SP, 0, 0));
-		LOGD ("Upsample chroma width");
-	}
-
-	// debanding
-	bool debanding = false;
-	const double debandThreshold = 16.0;
-
-	if (debanding) {
-		const GLfloat blurWeight[] = {
-			0.0886884268, 0.1111888680, 0.0959098625, 0.0760291736,
-			0.0553875087, 0.0370815002, 0.0228147565, 0.0128999036};
-		const GLfloat blurOffsetX[] = {
-			(float)  0.6643036225 / info->width, (float)  2.4867343814 / info->width,
-			(float)  4.4761344303 / info->width, (float)  6.4655559368 / info->width,
-			(float)  8.4550083353 / info->width, (float) 10.4445009501 / info->width,
-			(float) 12.4340429621 / info->width, (float) 14.4236433777 / info->width};
-		const GLfloat blurOffsetY[] = {
-			(float)  0.6643036225 / info->height, (float)  2.4867343814 / info->height,
-			(float)  4.4761344303 / info->height, (float)  6.4655559368 / info->height,
-			(float)  8.4550083353 / info->height, (float) 10.4445009501 / info->height,
-			(float) 12.4340429621 / info->height, (float) 14.4236433777 / info->height};
-		const int blurTaps = sizeof (blurWeight) / sizeof (*blurWeight);
-
-		const char* renderBlurXFP =
-			#include "shaders/blurX.h"
-
-		shader renderBlurXShader (renderVP, renderBlurXFP, precision, blurTaps);
-		GLuint renderBlurXSP = renderBlurXShader.loadProgram ();
-		if (!renderBlurXSP)
-			return false;
-
-		glUseProgram (renderBlurXSP);
-		glUniform1i  (glGetUniformLocation (renderBlurXSP, "video"), 0);
-		glUniform1fv (glGetUniformLocation (renderBlurXSP, "weight"), blurTaps, blurWeight);
-		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
-			renderBlurXSP, 1, 0));
-		LOGD ("Debanding: blur width");
-
-		const char* renderBlurYFP =
-			#include "shaders/blurY.h"
-
-		shader renderBlurYShader (renderVP, renderBlurYFP, precision, blurTaps);
-		GLuint renderBlurYSP = renderBlurYShader.loadProgram ();
-		if (!renderBlurYSP)
-			return false;
-
-		glUseProgram (renderBlurYSP);
-		glUniform1i  (glGetUniformLocation (renderBlurYSP, "video"), 1);
-		glUniform1fv (glGetUniformLocation (renderBlurYSP, "weight"), blurTaps, blurWeight);
-		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
-			renderBlurYSP, 1, 0));
-		LOGD ("Debanding: blur height");
-
-		const char* renderDebandFP =
-			#include "shaders/deband.h"
-
-		shader renderDebandShader (renderVP, renderDebandFP, precision);
-		GLuint renderDebandSP = renderDebandShader.loadProgram ();
-		if (!renderDebandSP)
-			return false;
-
-		glUseProgram (renderDebandSP);
-		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
-		glUniform1i (glGetUniformLocation (renderDebandSP, "blur"), 1);
-		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
-			(float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0));
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
-			renderDebandSP, 0, 0));
-		LOGD ("Debanding: debanding");
-	}
-
-	// convert YCbCr -> RGB
-	if (info->fourCC != pFormat::RGBA) {
-		const char* renderYuvToRgbFP =
-			#include "shaders/yuvToRgb.h"
-
-		shader renderYuvToRgbShader (renderVP, renderYuvToRgbFP, precision);
-		GLuint renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
-		if (!renderYuvToRgbSP)
-			return false;
-
-		glUseProgram (renderYuvToRgbSP);
-		glUniform1i			(glGetUniformLocation (renderYuvToRgbSP, "video"),		0);
-		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "conversion"), 1, GL_FALSE, info->colorConversion);
-		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
-			renderYuvToRgbSP, 0, 0));
-		LOGD ("YCbCr -> RGB conversion");
-	}
-/*
-	// scale width
-	if (info->targetWidth != info->width && !info->hwScale) {
-		GLuint renderScaleWidthSP;
-		if (info->targetWidth > info->width) {
-
-		} else {
-
-		}
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->targetWidth, info->targetHeight, internalType, info),
-			renderScaleWidthSP, 0));
-	}
-
-	// scale height
-	if (info->targetHeight != info->height && !info->hwScale) {
-		GLuint renderScaleHeightSP;
-		if (info->targetHeight > info->height) {
-
-		} else {
-
-		}
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->targetHeight, internalType, info),
-			renderScaleHeightSP, 0));
-	}
-*/
-	// dither
-	const char* renderDitherFP =
-		#include "shaders/dither.h"
-
-	shader renderDitherShader (renderVP, renderDitherFP, precision);
-	GLuint renderDitherSP = renderDitherShader.loadProgram ();
-	if (!renderDitherSP)
-		return false;
-
-	glUseProgram (renderDitherSP);
-	glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
-	glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), 3);
-
-	glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
-		(float) (pow (2.0, bitdepth) - 1.0),
-		(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
-	glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
-		(float) ((double) info->targetWidth / 32.0),
-		(float) ((double) info->targetHeight / 32.0));
-
-	#include "ditherMatrix.h"
-
-	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, info);
-	glActiveTexture (GL_TEXTURE0 + 3);
-	glBindTexture (GL_TEXTURE_2D, dither->plane);
-	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);
-	glActiveTexture (GL_TEXTURE0);
-
-	pass.push_back (new renderingPass (
-		dither,	renderDitherSP, 0, glGetUniformLocation (renderDitherSP, "offset")));
-	LOGD ("Dither");
-
-	return true;
 }
 
 void videoRenderer::getGlError () {

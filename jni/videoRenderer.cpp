@@ -432,6 +432,14 @@ void videoRenderer::setAspect () {
 				info->targetX = (surfaceWidth - info->targetWidth) / 2;
 			}
 			break;
+
+		// 100%
+		case 3:
+			info->targetWidth = info->width;
+			info->targetHeight = info->height;
+			info->targetX = (surfaceWidth - info->targetWidth) / 2;
+			info->targetY = (surfaceHeight - info->targetHeight) / 2;
+			break;
 	}
 
 	glViewport (info->targetX, info->targetY, info->targetWidth, info->targetHeight);

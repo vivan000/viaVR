@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "threads.h"
+#include "threads/threads.h"
 
 decoder::decoder (videoInfo* info, queue<frameCPU>* decodeQueue, IVideoDecoder* video) {
 	size = info->width * info->height * info->Bpp / 8;

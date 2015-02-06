@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "threads.h"
+#include "threads/threads.h"
 
 presenter::presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface mainSurface, EGLContext mainContext) {
@@ -42,7 +42,7 @@ presenter::presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
 		#include "shaders/displayFrag.h"
 
 	shader displayShader (displayVP, displayFP);
-	GLuint displaySP = displayShader.loadProgram ();
+	displaySP = displayShader.loadProgram ();
 	glUseProgram (displaySP);
 	glUniform1i (glGetUniformLocation (displaySP, "video"), 0);
 	from = new frameGPUo (info);
@@ -58,6 +58,8 @@ presenter::~presenter () {
 
 	eglMakeCurrent (display, surface, surface, context);
 	delete from;
+	glUseProgram (0);
+	glDeleteProgram (displaySP);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 

@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "frames.h"
+#include "frames/frames.h"
 
 frameGPUo::frameGPUo (videoInfo* f) {
 	glGenTextures (1, &plane);

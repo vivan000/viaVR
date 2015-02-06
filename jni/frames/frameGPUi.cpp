@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "frames.h"
+#include "frames/frames.h"
 
 frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) : width (w), height (h) {
 	GLenum internalFormat, format;

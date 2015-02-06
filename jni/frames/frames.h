@@ -18,8 +18,8 @@
  */
 
 #pragma once
-#include "videoInfo.h"
 #include <algorithm>
+#include "videoInfo.h"
 
 // frame for upload - CPU
 class frameCPU {

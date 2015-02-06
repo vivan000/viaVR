@@ -24,7 +24,6 @@
 #include <string>
 #include "log.h"
 #include "videoRenderer.h"
-#include "shader.h"
 
 videoRenderer::videoRenderer () {
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);

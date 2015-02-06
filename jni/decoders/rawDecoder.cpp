@@ -1,4 +1,4 @@
-#include "rawDecoder.h"
+#include "decoders/rawDecoder.h"
 #include <fstream>
 
 rawDecoder::rawDecoder () {

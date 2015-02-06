@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "threads.h"
+#include "threads/threads.h"
 
 renderer::renderer (videoInfo* info, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface renderPbuffer, EGLContext renderContext, GLuint* vboIds) {
@@ -49,6 +49,7 @@ renderer::~renderer () {
 		stop ();
 
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
+	glUseProgram (0);
 	for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
 		delete *passIt;
 
@@ -328,7 +329,7 @@ bool renderer::renderInit () {
 		(float) ((double) info->targetWidth / 32.0),
 		(float) ((double) info->targetHeight / 32.0));
 
-	#include "ditherMatrix.h"
+	#include "threads/helpers/ditherMatrix.h"
 
 	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, info);
 	glActiveTexture (GL_TEXTURE0 + 3);

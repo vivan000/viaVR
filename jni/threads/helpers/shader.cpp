@@ -20,7 +20,7 @@
 #include <cstdio>
 #include <string.h>
 #include "log.h"
-#include "shader.h"
+#include "threads/helpers/shader.h"
 
 shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource, ...) {
 	int size = strlen (fragmentShaderSource) + 32;

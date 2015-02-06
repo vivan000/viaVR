@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "renderingPass.h"
+#include "threads/helpers/renderingPass.h"
 
 renderingPass::renderingPass (frameGPUi* frame, GLuint program, int target, GLint dither) {
 	renderingPass::frame = frame;

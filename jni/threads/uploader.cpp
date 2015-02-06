@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "threads.h"
+#include "threads/threads.h"
 
 uploader::uploader (videoInfo* info, queue<frameCPU>* decodeQueue, queue<frameGPUu>* uploadQueue,
 		EGLDisplay display, EGLSurface uploadPbuffer, EGLContext uploadContext) {

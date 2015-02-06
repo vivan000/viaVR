@@ -18,7 +18,7 @@
  */
 
 #pragma once
-#include "frames.h"
+#include "frames/frames.h"
 
 class renderingPass {
 public:

@@ -1,6 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
-#include "patternGenerator.h"
+#include "decoders/patternGenerator.h"
 #include "videoInfo.h"
 
 patternGenerator::patternGenerator () {

@@ -17,7 +17,7 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
-#include "frames.h"
+#include "frames/frames.h"
 
 frameGPUu::frameGPUu (videoInfo* f) {
 	numberOfPlanes = f->planes;

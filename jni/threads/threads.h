@@ -24,10 +24,10 @@
 #include <thread>
 #include <vector>
 #include "interface/IVideodecoder.h"
-#include "frames.h"
+#include "frames/frames.h"
 #include "queue.h"
-#include "shader.h"
-#include "renderingPass.h"
+#include "threads/helpers/shader.h"
+#include "threads/helpers/renderingPass.h"
 #include "log.h"
 
 typedef std::vector<renderingPass*> rPass;
@@ -131,6 +131,8 @@ private:
 	EGLDisplay display;
 	EGLSurface surface;
 	EGLContext context;
+
+	GLuint displaySP;
 
 	frameGPUo* from;
 	bool working, playing;

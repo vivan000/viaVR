@@ -21,7 +21,7 @@
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
 #include "interface/IVideoRenderer.h"
-#include "threads.h"
+#include "threads/threads.h"
 
 class videoRenderer: public IVideoRenderer {
 public:

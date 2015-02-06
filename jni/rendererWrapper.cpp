@@ -4,7 +4,7 @@
 #include "rendererWrapper.h"
 #include "interface/IVideoRenderer.h"
 #include "videoRenderer.h"
-#include "rawDecoder.h"
+#include "decoders/rawDecoder.h"
 
 static ANativeWindow* window = 0;
 static IVideoRenderer* r = 0;

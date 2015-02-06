@@ -97,6 +97,9 @@ public:
 	bool hwChroma, hwScale;
 	bool hwChromaLinear, hwScaleLinear;
 
+	int fpsNumerator, fpsDenominator;
+	int sarWidth, sarHeight;
+
 private:
 	double rangeY, rangeC, luma0, Kb, Kr;
 };

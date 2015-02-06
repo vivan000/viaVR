@@ -35,13 +35,10 @@ videoRenderer::videoRenderer () {
 videoRenderer::~videoRenderer () {
 	LOGD ("Destroing videoRenderer");
 	if (initialized) {
-		playing = false;
-
+		delete presentO;
 		delete decodeO;
 		delete uploadO;
 		delete renderO;
-
-		drawThread.join ();
 
 		eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
@@ -49,7 +46,6 @@ videoRenderer::~videoRenderer () {
 		delete uploadQueue;
 		delete renderQueue;
 
-		delete displayCurr;
 		glDeleteBuffers (3, vboIds);
 
 		eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
@@ -72,16 +68,6 @@ int videoRenderer::getMinorVersion () {
 	return 0;
 }
 
-int64_t videoRenderer::nanotime () {
-	struct timespec now;
-	clock_gettime (CLOCK_MONOTONIC, &now);
-	return (int64_t) now.tv_sec * 1000000000LL + now.tv_nsec;
-}
-
-int videoRenderer::tcNow () {
-	return (int) ((nanotime () - start) / 1000000);
-}
-
 bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	videoRenderer::video = video;
 	info = new videoInfo (video->getWidth (), video->getHeight (),
@@ -90,18 +76,19 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	if (!info->init)
 		return false;
 
-	videoSarWidth =		video->getSarWidth ();
-	videoSarHeight =	video->getSarHeight ();
-	videoFps = 			round ((double) video->getFpsNumerator () / video->getFpsDenominator ());
+	info->sarWidth = video->getSarWidth ();
+	info->sarHeight = video->getSarHeight ();
+	info->fpsNumerator = video->getFpsNumerator ();
+	info->fpsDenominator = video->getFpsDenominator ();
 
 	LOGD ("Video info:");
-	LOGD ("Video %ix%i (%i:%i)", info->width, info->height, videoSarWidth, videoSarHeight);
+	LOGD ("Video %ix%i (%i:%i)", info->width, info->height, info->sarWidth, info->sarHeight);
 	LOGD (reinterpret_cast <char*> (&info->fourCC)[2] > 16 ? "FourCC: %c%c%c%c\n" : "FourCC: %c%c[%i][%i]\n",
 		reinterpret_cast <char*> (&info->fourCC)[0], reinterpret_cast <char*> (&info->fourCC)[1],
 		reinterpret_cast <char*> (&info->fourCC)[2], reinterpret_cast <char*> (&info->fourCC)[3]);
 	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", video->getMatrix () != 0 ? "upstream" : "guess");
 	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", video->getRange () != 0 ? "upstream" : "guess");
-	LOGD ("Framerate: %i/%i", video->getFpsNumerator (), video->getFpsDenominator ());
+	LOGD ("Framerate: %i/%i", info->fpsNumerator, info->fpsDenominator);
 
 	info->hwChroma = true;
 	info->hwChromaLinear = true;
@@ -223,13 +210,12 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 }
 
 void videoRenderer::setRefreshRate (int fps) {
-	displayRefreshRate = fps;
 }
 
 bool videoRenderer::init () {
-	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
-
 	srand (time (NULL));
+
+	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
 	// check version
 	GLint GLversion = 0;
@@ -238,10 +224,12 @@ bool videoRenderer::init () {
 		return false;
 	LOGD ("Version: OK");
 
+	// check video decoder
 	if (!info->init)
 		return false;
 	LOGD ("Video decoder: OK");
 
+	// set viewport
 	setAspect ();
 
 	// check extenions
@@ -250,6 +238,147 @@ bool videoRenderer::init () {
 	LOGD ("Extensions: OK");
 
 	// load coordinates
+	loadVbos ();
+
+	// create queues
+	decodeQueue = new queue<frameCPU> (8, info);
+	uploadQueue = new queue<frameGPUu> (8, info);
+	renderQueue = new queue<frameGPUo> (8, info);
+
+	// start threads
+	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	presentO = new presenter (info, renderQueue, display, mainSurface, mainContext);
+	decodeO = new decoder (info, decodeQueue, video);
+	uploadO = new uploader (info, decodeQueue, uploadQueue, display, uploadPbuffer, uploadContext);
+	renderO = new renderer (info, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
+
+	// wait till there's at least 1 frame to show
+	while (renderQueue->isEmpty ())
+		usleep (10000);
+
+	initialized = true;
+	LOGD ("Initialization: OK");
+
+	return true;
+}
+
+bool videoRenderer::checkExtensions () {
+	GLint numExtensions;
+	std::vector<std::string> extList;
+
+	glGetIntegerv (GL_NUM_EXTENSIONS, &numExtensions);
+	for (int i = 0; i < numExtensions; i++)
+		extList.push_back ((const char*) glGetStringi (GL_EXTENSIONS, i));
+
+	bool extColorHalfFloat = false;
+	bool extColorFloat = false;
+	bool extHalfFloatLinear = false;
+	bool extFloatLinear = false;
+	bool extBinningControl = false;
+	bool extWriteOnly = false;
+	bool extTimerQuery = false;
+
+	for (unsigned int i = 0; i < extList.size (); i++) {
+		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float") && !extColorHalfFloat)
+			extColorHalfFloat = true;
+		if (!extList.at (i).compare ("GL_EXT_color_buffer_float") && !extColorFloat)
+			extColorFloat = true;
+		if (!extList.at (i).compare ("GL_OES_texture_half_float_linear") && !extHalfFloatLinear)
+			extHalfFloatLinear = true;
+		if (!extList.at (i).compare ("GL_OES_texture_float_linear") && !extFloatLinear)
+			extFloatLinear = true;
+		if (!extList.at (i).compare ("GL_QCOM_binning_control") && !extBinningControl)
+			extBinningControl = true;
+		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering") && !extWriteOnly)
+			extWriteOnly = true;
+		if (!extList.at (i).compare ("GL_EXT_disjoint_timer_query") && !extTimerQuery)
+			extTimerQuery = true;
+	}
+
+/*
+	// half-float texture is target and not supported
+	if ((precisionTex == 1) && !extColorHalfFloat)
+		return false;
+
+	// float texture is target and not supported
+	if ((precisionTex == 2) && !extColorFloat)
+		return false;
+
+	if (extBinningControl)
+		glHint (0x8FB0, 0x8FB3); // BINNING_CONTROL_HINT_QCOM, RENDER_DIRECT_TO_FRAMEBUFFER_QCOM
+
+	if (extWriteOnly)
+		glEnable (0x8823); // WRITEONLY_RENDERING_QCOM
+*/
+	glDisable (GL_DITHER);
+
+	LOGD ("Extensions:");
+	LOGD ("Half-float texture: %s, bilinear: %s",
+		extColorHalfFloat ? "supported" : "not supported",
+		extHalfFloatLinear  ? "supported" : "not supported");
+	LOGD ("Float texture: %s, bilinear: %s",
+		extColorFloat ? "supported" : "not supported",
+		extFloatLinear  ? "supported" : "not supported");
+	LOGD ("Binning control: %s", extBinningControl ? "supported" : "not supported");
+	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
+	LOGD ("Timer queries: %s", extTimerQuery ? "supported" : "not supported");
+	return true;
+}
+
+void videoRenderer::setAspect () {
+	int mode = 1;
+	switch (mode) {
+		// stretch
+		case 0:
+			info->targetX = 0;
+			info->targetY = 0;
+			info->targetWidth = surfaceWidth;
+			info->targetHeight = surfaceHeight;
+			break;
+
+		// touch from inside
+		case 1:
+			if ((long long) surfaceWidth * info->height * info->sarHeight < (long long) info->width * info->sarWidth * surfaceHeight) {
+				info->targetX = 0;
+				info->targetWidth = surfaceWidth;
+				info->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
+				info->targetY = (surfaceHeight - info->targetHeight) / 2;
+			} else {
+				info->targetY = 0;
+				info->targetHeight = surfaceHeight;
+				info->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
+				info->targetX = (surfaceWidth - info->targetWidth) / 2;
+			}
+			break;
+
+		// touch from outside
+		case 2:
+			if ((long long) surfaceWidth * info->height * info->sarHeight > (long long) info->width * info->sarWidth * surfaceHeight) {
+				info->targetX = 0;
+				info->targetWidth = surfaceWidth;
+				info->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
+				info->targetY = (surfaceHeight - info->targetHeight) / 2;
+			} else {
+				info->targetY = 0;
+				info->targetHeight = surfaceHeight;
+				info->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
+				info->targetX = (surfaceWidth - info->targetWidth) / 2;
+			}
+			break;
+
+		// 100%
+		case 3:
+			info->targetWidth = info->width;
+			info->targetHeight = info->height;
+			info->targetX = (surfaceWidth - info->targetWidth) / 2;
+			info->targetY = (surfaceHeight - info->targetHeight) / 2;
+			break;
+	}
+
+	glViewport (info->targetX, info->targetY, info->targetWidth, info->targetHeight);
+}
+
+void videoRenderer::loadVbos () {
 	const float VertexPositions[] = {
 		-1.0f, -1.0f, 0.0f, 1.0f,
 		-1.0f,  1.0f, 0.0f, 1.0f,
@@ -284,165 +413,6 @@ bool videoRenderer::init () {
 
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
-
-	// load shaders
-	const char* displayVP =
-		#include "shaders/displayVert.h"
-	const char* displayFP =
-		#include "shaders/displayFrag.h"
-
-	shader displayShader (displayVP, displayFP);
-	GLuint displaySP = displayShader.loadProgram ();
-	if (!displaySP)
-		return false;
-
-	GLint displayTLoc = glGetUniformLocation (displaySP, "video");
-	glUseProgram (displaySP);
-	glUniform1i (displayTLoc, 0);
-	LOGD ("Display shader: OK");
-
-	// start threads
-	decodeQueue = new queue<frameCPU> (8, info);
-	uploadQueue = new queue<frameGPUu> (8, info);
-	renderQueue = new queue<frameGPUo> (8, info);
-
-	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	decodeO = new decoder (info, decodeQueue, video);
-	uploadO = new uploader (info, decodeQueue, uploadQueue, display, uploadPbuffer, uploadContext);
-	renderO = new renderer (info, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
-	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
-
-	// wait till there's at least 1 frame to show
-	while (renderQueue->isEmpty ()) {
-		usleep (10000);
-	}
-
-	// create display texture
-	displayCurr = new frameGPUo (info);
-
-	hardLate = -2000 / videoFps;
-	softLate = 0;
-	softEarly = 2000 / videoFps;
-	hardEarly = 4000 / videoFps;
-	repeatLim = displayRefreshRate / videoFps * videoFps;
-
-	initialized = true;
-	LOGD ("Initialization: OK");
-
-	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	return true;
-}
-
-bool videoRenderer::checkExtensions () {
-	GLint numExtensions;
-	std::vector<std::string> extList;
-
-	glGetIntegerv (GL_NUM_EXTENSIONS, &numExtensions);
-	for (int i = 0; i < numExtensions; i++)
-		extList.push_back ((const char*) glGetStringi (GL_EXTENSIONS, i));
-
-	bool extColorHalfFloat = false;
-	bool extColorFloat = false;
-	bool extHalfFloatLinear = false;
-	bool extFloatLinear = false;
-	bool extBinningControl = false;
-	bool extWriteOnly = false;
-
-	for (unsigned int i = 0; i < extList.size (); i++) {
-		if (!extList.at (i).compare ("GL_EXT_color_buffer_half_float") && !extColorHalfFloat)
-			extColorHalfFloat = true;
-		if (!extList.at (i).compare ("GL_EXT_color_buffer_float") && !extColorFloat)
-			extColorFloat = true;
-		if (!extList.at (i).compare ("GL_OES_texture_half_float_linear") && !extHalfFloatLinear)
-			extHalfFloatLinear = true;
-		if (!extList.at (i).compare ("GL_OES_texture_float_linear") && !extFloatLinear)
-			extFloatLinear = true;
-		if (!extList.at (i).compare ("GL_QCOM_binning_control") && !extBinningControl)
-			extBinningControl = true;
-		if (!extList.at (i).compare ("GL_QCOM_writeonly_rendering") && !extWriteOnly)
-			extWriteOnly = true;
-	}
-
-	// half-float texture is target and not supported
-	if ((precisionTex == 1) && !extColorHalfFloat)
-		return false;
-
-	// float texture is target and not supported
-	if ((precisionTex == 2) && !extColorFloat)
-		return false;
-/*
-	if (extBinningControl)
-		glHint (0x8FB0, 0x8FB3); // BINNING_CONTROL_HINT_QCOM, RENDER_DIRECT_TO_FRAMEBUFFER_QCOM
-
-	if (extWriteOnly)
-		glEnable (0x8823); // WRITEONLY_RENDERING_QCOM
-*/
-	glDisable (GL_DITHER);
-
-	LOGD ("Extensions:");
-	LOGD ("Target texture: %i, target processing: %s", precisionTex, precisionHighp ? "highp" : "mediump");
-	LOGD ("Half-float texture: %s, bilinear: %s",
-		extColorHalfFloat ? "supported" : "not supported",
-		extHalfFloatLinear  ? "supported" : "not supported");
-	LOGD ("Float texture: %s, bilinear: %s",
-		extColorFloat ? "supported" : "not supported",
-		extFloatLinear  ? "supported" : "not supported");
-	LOGD ("Binning control: %s", extBinningControl ? "supported" : "not supported");
-	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
-	return true;
-}
-
-void videoRenderer::setAspect () {
-	int mode = 1;
-	switch (mode) {
-		// stretch
-		case 0:
-			info->targetX = 0;
-			info->targetY = 0;
-			info->targetWidth = surfaceWidth;
-			info->targetHeight = surfaceHeight;
-			break;
-
-		// touch from inside
-		case 1:
-			if ((long long) surfaceWidth * info->height * videoSarHeight < (long long) info->width * videoSarWidth * surfaceHeight) {
-				info->targetX = 0;
-				info->targetWidth = surfaceWidth;
-				info->targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
-				info->targetY = (surfaceHeight - info->targetHeight) / 2;
-			} else {
-				info->targetY = 0;
-				info->targetHeight = surfaceHeight;
-				info->targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
-				info->targetX = (surfaceWidth - info->targetWidth) / 2;
-			}
-			break;
-
-		// touch from outside
-		case 2:
-			if ((long long) surfaceWidth * info->height * videoSarHeight > (long long) info->width * videoSarWidth * surfaceHeight) {
-				info->targetX = 0;
-				info->targetWidth = surfaceWidth;
-				info->targetHeight = (long long) surfaceWidth * info->height * videoSarHeight / info->width / videoSarWidth;
-				info->targetY = (surfaceHeight - info->targetHeight) / 2;
-			} else {
-				info->targetY = 0;
-				info->targetHeight = surfaceHeight;
-				info->targetWidth = (long long) surfaceHeight * info->width * videoSarWidth / info->height / videoSarHeight;
-				info->targetX = (surfaceWidth - info->targetWidth) / 2;
-			}
-			break;
-
-		// 100%
-		case 3:
-			info->targetWidth = info->width;
-			info->targetHeight = info->height;
-			info->targetX = (surfaceWidth - info->targetWidth) / 2;
-			info->targetY = (surfaceHeight - info->targetHeight) / 2;
-			break;
-	}
-
-	glViewport (info->targetX, info->targetY, info->targetWidth, info->targetHeight);
 }
 
 void videoRenderer::delContexts () {
@@ -456,83 +426,10 @@ void videoRenderer::delContexts () {
 	eglDestroyContext (display, mainContext);
 }
 
-void videoRenderer::drawFrame () {
-	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
-
-	while (playing) {
-		glClear (GL_COLOR_BUFFER_BIT);
-
-		int tc = tcNow ();
-		while (repeat <= 0) {
-			getNextFrame (displayCurr);
-		}
-
-		if (displayCurr->timecode < tc + softLate) {
-			if (displayCurr->timecode < tc + hardLate) {
-				// if very late - drop current frame
-				LOGI ("hard drop (repeat: %i)", repeat / videoFps);
-				repeat -= videoFps;
-			} else if (newFrame && (repeat >= displayRefreshRate)) {
-				// if just a bit late - try to find best frame to drop (that is repeated more times than others)
-				LOGD ("soft drop (repeat: %i)", repeat / videoFps);
-				repeat -= videoFps;
-			}
-		} else if (displayCurr->timecode > tc + softEarly) {
-			if (displayCurr->timecode > tc + hardEarly) {
-				// if very early - repeat current frame
-				LOGI ("hard repeat (repeat: %i)", repeat / videoFps);
-				repeat += videoFps;
-			} else if (newFrame && (repeat <= repeatLim)) {
-				// if just a bit early - try to find best frame to repeat (that is repeated less times than others)
-				LOGD ("soft repeat (repeat: %i)", repeat / videoFps);
-				repeat += videoFps;
-			}
-		}
-
-		presentFrame (displayCurr);
-
-		eglSwapBuffers (display, mainSurface);
-	}
-
-	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-}
-
-void videoRenderer::presentFrame (frameGPUo* f) {
-	int64_t now = nanotime ();
-	double deltaPrev = (now - prev) / 1000000.0;
-	double deltaPrev2 = (now - prev2) / 1000000.0;
-	prev2 = prev;
-	prev = now;
-
-	if (presentedFrames > 1) {
-		if (deltaPrev2 >= 50.0)
-			LOGE ("display drop %5.2f ms", deltaPrev2);
-		//LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
-		//	frameNumber, f->timecode, tcNow (), deltaPrev, deltaPrev2, repeat);
-	}
-
-	glBindTexture (GL_TEXTURE_2D, f->plane);
-	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
-
-	presentedFrames++;
-	newFrame = false;
-
-	repeat -= videoFps;
-}
-
-void videoRenderer::getNextFrame (frameGPUo* f) {
-	if (!renderQueue->isEmpty ()) {
-		renderQueue->pop (f);
-
-		frameNumber++;
-		newFrame = true;
-	}
-
-	repeat += displayRefreshRate;
-}
-
-void videoRenderer::seek (int timestamp) {
+void videoRenderer::seek (int timecode) {
 	if (initialized) {
+		pause ();
+
 		// stop everything
 		decodeO->stop ();
 		uploadO->stop ();
@@ -544,7 +441,7 @@ void videoRenderer::seek (int timestamp) {
 		renderQueue->flush();
 
 		// seek video
-		video->seek (timestamp);
+		video->seek (timecode);
 
 		// restart threads
 		decodeO->start ();
@@ -554,22 +451,13 @@ void videoRenderer::seek (int timestamp) {
 }
 
 void videoRenderer::play (int timecode) {
-	start = nanotime () - (int64_t) timecode * 1000000LL;
-	presentedFrames = 0;
-	repeat = 0;
-	frameNumber = 0;
-	playing = true;
-
-	drawThread = std::thread (&videoRenderer::drawFrame, this);
+	presentO->play (timecode);
 }
 
 void videoRenderer::pause () {
-	playing = false;
-
-	drawThread.join ();
+	presentO->pause ();
 }
-
-void videoRenderer::getGlError () {
+void videoRenderer::getGlError () {
 	GLenum err;
 	while ((err = glGetError()) != GL_NO_ERROR)
 		switch (err) {

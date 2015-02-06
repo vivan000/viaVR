@@ -20,12 +20,8 @@
 #pragma once
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
-#include <thread>
-#include <vector>
 #include "interface/IVideoRenderer.h"
-#include "frames.h"
 #include "threads.h"
-#include "queue.h"
 
 class videoRenderer: public IVideoRenderer {
 public:
@@ -46,37 +42,24 @@ public:
 	int getMinorVersion ();
 
 private:
-	int64_t nanotime ();
-	int tcNow ();
-
-	bool checkExtensions ();
-
-	void setAspect ();
-	void genContexts ();
-	void delContexts ();
-
-	void drawFrame ();
-	void presentFrame (frameGPUo* f);
-	void getNextFrame (frameGPUo* f);
-
 	bool renderInit ();
+	void loadVbos ();
+	bool checkExtensions ();
+	void setAspect ();
+
+	void delContexts ();
 	void getGlError ();
 	void getFbStatus ();
 	const char* getEglErrorStr ();
 
-	// video config
 	IVideoDecoder* video;
 	videoInfo* info;
-	int videoSarWidth, videoSarHeight;
-	int videoFps;
-
-	bool playing;
+	GLuint vboIds[3];
+	bool initialized;
 
 	queue<frameCPU>* decodeQueue;
 	queue<frameGPUu>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
-
-	std::thread drawThread;
 
 	EGLDisplay display;
 
@@ -90,25 +73,8 @@ private:
 
 	EGLint surfaceWidth, surfaceHeight;
 
-	int precisionTex = 0;
-	bool precisionHighp = true;
-
-	bool initialized;
-	int64_t start;
-
-	int displayRefreshRate = 60;
-
-	frameGPUo* displayCurr;
-	int repeat, repeatLim;
-	bool newFrame;
-	int frameNumber, presentedFrames;
-	int hardLate, softLate, softEarly, hardEarly;
-
-	int64_t prev, prev2;
-
-	GLuint vboIds[3];
-
 	decoder* decodeO;
 	uploader* uploadO;
 	renderer* renderO;
+	presenter* presentO;
 };

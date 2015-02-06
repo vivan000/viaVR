@@ -109,3 +109,41 @@ private:
 	const char* precision = "highp";
 	int bitdepth = 8;
 };
+
+class presenter {
+public:
+	presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
+		EGLDisplay display, EGLSurface mainSurface, EGLContext mainContext);
+	~presenter ();
+	void pause ();
+	void play (int timecode);
+
+private:
+	void present ();
+	void getNextFrame ();
+	void presentFrame ();
+	int64_t nanotime ();
+	int tcNow ();
+
+	videoInfo* info;
+	queue<frameGPUo>* renderQueue;
+
+	EGLDisplay display;
+	EGLSurface surface;
+	EGLContext context;
+
+	frameGPUo* from;
+	bool working, playing;
+	std::thread thread;
+
+	int64_t start;
+	int64_t prev, prev2;
+
+	int repeat, repeatLim;
+	bool newFrame;
+	int frameNumber, presentedFrames;
+	int hardLate, softLate, softEarly, hardEarly;
+
+	int videoFps;
+	int displayRefreshRate = 60;
+};

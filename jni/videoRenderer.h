@@ -47,9 +47,6 @@ private:
 	void setAspect ();
 
 	void delContexts ();
-	void getGlError ();
-	void getFbStatus ();
-	const char* getEglErrorStr ();
 
 	IVideoDecoder* video;
 	videoInfo* info;

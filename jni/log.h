@@ -17,7 +17,12 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
+#pragma once
 #include <android/log.h>
 #define LOGE(...) __android_log_print (ANDROID_LOG_ERROR, "viaVR", __VA_ARGS__)
 #define LOGD(...) __android_log_print (ANDROID_LOG_DEBUG, "viaVR", __VA_ARGS__)
 #define LOGI(...) __android_log_print (ANDROID_LOG_INFO, "viaVR", __VA_ARGS__)
+
+bool checkGlStatus ();
+bool checkFbStatus ();
+const char* getEglErrorStr ();

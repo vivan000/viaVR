@@ -30,7 +30,6 @@ public:
 
 	bool addVideoDecoder (IVideoDecoder* video);
 	bool addWindow (ANativeWindow* window);
-	void setRefreshRate (int fps);
 	bool init ();
 
 	void seek (int timecode);

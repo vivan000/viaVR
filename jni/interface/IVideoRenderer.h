@@ -8,7 +8,6 @@ public:
 
 	virtual bool addVideoDecoder (IVideoDecoder* video) = 0;
 	virtual bool addWindow (ANativeWindow* window) = 0;
-	virtual void setRefreshRate (int fps) = 0;
 	virtual bool init () = 0;
 
 	virtual void seek (int timestamp) = 0;

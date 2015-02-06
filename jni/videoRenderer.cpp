@@ -209,9 +209,6 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 	return true;
 }
 
-void videoRenderer::setRefreshRate (int fps) {
-}
-
 bool videoRenderer::init () {
 	srand (time (NULL));
 

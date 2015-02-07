@@ -142,9 +142,12 @@ void presenter::presentFrame () {
 	if (presentedFrames > 1) {
 		if (deltaPrev2 >= 50.0)
 			LOGE ("display drop %5.2f ms", deltaPrev2);
-		//LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
-		//	frameNumber, from->timecode, tcNow (), deltaPrev, deltaPrev2, repeat);
 	}
+	/*
+	LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
+		frameNumber, from->timecode, tcNow (), presentedFrames > 0 ? deltaPrev : 0.0,
+		presentedFrames > 1 ? deltaPrev2 : 0.0, repeat);
+	*/
 
 	glBindTexture (GL_TEXTURE_2D, from->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);

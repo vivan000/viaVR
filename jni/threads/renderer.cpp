@@ -31,6 +31,9 @@ renderer::renderer (videoInfo* info, queue<frameGPUu>* uploadQueue, queue<frameG
 	renderer::vboIds = vboIds;
 
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
+	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
+	glDisable (GL_DITHER);
+
 	from = new frameGPUu (info);
 	to = new frameGPUo (info);
 

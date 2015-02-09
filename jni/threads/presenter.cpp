@@ -36,6 +36,9 @@ presenter::presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
 	repeatLim = displayRefreshRate / videoFps * videoFps;
 
 	eglMakeCurrent (display, surface, surface, context);
+	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
+	glDisable (GL_DITHER);
+
 	const char* displayVP =
 		#include "shaders/displayVert.h"
 	const char* displayFP =

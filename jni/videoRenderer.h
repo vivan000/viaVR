@@ -46,12 +46,10 @@ private:
 	bool checkExtensions ();
 	void setAspect ();
 
-	void delContexts ();
-
+	bool initialized = false;
 	IVideoDecoder* video;
 	videoInfo* info;
 	GLuint vboIds[3];
-	bool initialized;
 
 	queue<frameCPU>* decodeQueue;
 	queue<frameGPUu>* uploadQueue;

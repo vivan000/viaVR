@@ -26,9 +26,6 @@
 #include "videoRenderer.h"
 
 videoRenderer::videoRenderer () {
-	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
-	glClear (GL_COLOR_BUFFER_BIT);
-	initialized = false;
 }
 
 videoRenderer::~videoRenderer () {
@@ -49,7 +46,12 @@ videoRenderer::~videoRenderer () {
 
 		eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-		delContexts ();
+		eglDestroySurface (display, uploadPbuffer);
+		eglDestroyContext (display, uploadContext);
+		eglDestroySurface (display, renderPbuffer);
+		eglDestroyContext (display, renderContext);
+		eglDestroySurface (display, mainSurface);
+		eglDestroyContext (display, mainContext);
 	}
 
 	delete info;
@@ -201,9 +203,6 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
-	glDisable (GL_DITHER);
-
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	return true;
 }
@@ -311,7 +310,6 @@ bool videoRenderer::checkExtensions () {
 	if (extWriteOnly)
 		glEnable (0x8823); // WRITEONLY_RENDERING_QCOM
 */
-	glDisable (GL_DITHER);
 
 	LOGD ("Extensions:");
 	LOGD ("Half-float texture: %s, bilinear: %s",
@@ -414,17 +412,6 @@ void videoRenderer::loadVbos () {
 
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[2]);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (VertexTexcoord), VertexTexcoord, GL_STATIC_DRAW);
-}
-
-void videoRenderer::delContexts () {
-	eglDestroySurface (display, uploadPbuffer);
-	eglDestroyContext (display, uploadContext);
-
-	eglDestroySurface (display, renderPbuffer);
-	eglDestroyContext (display, renderContext);
-
-	eglDestroySurface (display, mainSurface);
-	eglDestroyContext (display, mainContext);
 }
 
 void videoRenderer::seek (int timecode) {

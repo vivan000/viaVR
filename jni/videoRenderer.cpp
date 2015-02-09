@@ -102,24 +102,33 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 }
 
 bool videoRenderer::addWindow (ANativeWindow* window) {
-	const EGLint attribListWindowCfg[] = {
+	const EGLint attribListWindowConfig[] = {
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_BLUE_SIZE, 8,
 		EGL_GREEN_SIZE, 8,
 		EGL_RED_SIZE, 8,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_CONFORMANT, EGL_OPENGL_ES2_BIT,
+		EGL_RENDERABLE_TYPE, 0x00000040, // EGL_OPENGL_ES3_BIT is not defined in egl.h yet
 		EGL_NONE};
 
-	const EGLint attribListPbufCfg[] = {
+	const EGLint attribListPbufferConfig[] = {
 		EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
 		EGL_NONE};
 
-	const EGLint attribListContext[] = {
+	const EGLint attribListMainContext[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 3,
+		EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
+		EGL_NONE};
+
+	const EGLint attribListBackgroundContext[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 3,
+		EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_LOW_IMG,
+		EGL_NONE};
+
+	const EGLint attribListNoPriorityContext[] = {
 		EGL_CONTEXT_CLIENT_VERSION, 3,
 		EGL_NONE};
 
-	const EGLint attribListPbufSrf[] = {
+	const EGLint attribListPbufferSurface[] = {
 		EGL_WIDTH, 1,
 		EGL_HEIGHT, 1,
 		EGL_NONE};
@@ -127,6 +136,7 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 	EGLConfig config;
 	EGLint numConfigs;
 	EGLint format;
+	bool priority = true;
 
 	display = eglGetDisplay (EGL_DEFAULT_DISPLAY);
 	if (display == EGL_NO_DISPLAY) {
@@ -139,7 +149,7 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	if (!eglChooseConfig (display, attribListWindowCfg, &config, 1, &numConfigs)) {
+	if (!eglChooseConfig (display, attribListWindowConfig, &config, 1, &numConfigs)) {
 		LOGE ("ChooseConfig error: %s", getEglErrorStr ());
 		return false;
 	}
@@ -157,10 +167,16 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	mainContext = eglCreateContext (display, config, 0, attribListContext);
+	mainContext = eglCreateContext (display, config, 0, attribListMainContext);
 	if (!mainContext) {
-		LOGE ("CreateContext error: %s", getEglErrorStr ());
-		return false;
+		mainContext = eglCreateContext (display, config, 0, attribListNoPriorityContext);
+		if (!mainContext) {
+			LOGE ("CreateContext error: %s", getEglErrorStr ());
+			return false;
+		} else {
+			LOGD ("Context priority is not supported");
+			priority = false;
+		}
 	}
 
 	if (!eglMakeCurrent (display, mainSurface, mainSurface, mainContext)) {
@@ -174,30 +190,32 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	if (!eglChooseConfig (display, attribListPbufCfg, &config, 1, &numConfigs)) {
+	if (!eglChooseConfig (display, attribListPbufferConfig, &config, 1, &numConfigs)) {
 		LOGE ("Pbuffer ChooseConfig error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	uploadPbuffer = eglCreatePbufferSurface (display, config, attribListPbufSrf);
+	uploadPbuffer = eglCreatePbufferSurface (display, config, attribListPbufferSurface);
 	if (!uploadPbuffer) {
 		LOGE ("Upload pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	uploadContext = eglCreateContext (display, config, mainContext, attribListContext);
+	uploadContext = eglCreateContext (display, config, mainContext,
+		priority ? attribListBackgroundContext : attribListNoPriorityContext);
 	if (!uploadContext) {
 		LOGE ("Upload pbuffer CreateContext error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	renderPbuffer = eglCreatePbufferSurface (display, config, attribListPbufSrf);
+	renderPbuffer = eglCreatePbufferSurface (display, config, attribListPbufferSurface);
 	if (!renderPbuffer) {
 		LOGE ("Render pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	renderContext = eglCreateContext (display, config, mainContext, attribListContext);
+	renderContext = eglCreateContext (display, config, mainContext,
+		priority ? attribListBackgroundContext : attribListNoPriorityContext);
 	if (!renderContext) {
 		LOGE ("Render pbuffer CreateContext error: %s", getEglErrorStr ());
 		return false;

@@ -19,7 +19,7 @@
 
 #include "frames/frames.h"
 
-frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) : width (w), height (h) {
+frameGPUi::frameGPUi (int w, int h, pFormat type, bool linear, videoInfo* f) : width (w), height (h) {
 	GLenum internalFormat, format;
 	bool repeat = false;
 	switch (type) {
@@ -47,8 +47,8 @@ frameGPUi::frameGPUi (int w, int h, pFormat type, videoInfo* f) : width (w), hei
 	}
 	glGenTextures (1, &plane);
 	glBindTexture (GL_TEXTURE_2D, plane);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, f->hwScaleLinear ? GL_LINEAR : GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, f->hwScaleLinear ? GL_LINEAR : GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, linear ? GL_LINEAR : GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linear ? GL_LINEAR : GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	glTexImage2D (GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, format, NULL);

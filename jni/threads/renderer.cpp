@@ -143,7 +143,7 @@ bool renderer::renderInit () {
 				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, internalType, info),
+				new frameGPUi (info->width, info->height, internalType, false, info),
 				renderToInternalSP, 0, 0));
 			LOGD ("Planar to internal");
 
@@ -163,7 +163,7 @@ bool renderer::renderInit () {
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"), 0);
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, internalType, info),
+				new frameGPUi (info->width, info->height, internalType, false, info),
 				renderToInternalSP, 0, 0));
 			LOGD ("RGBA to internal");
 
@@ -188,7 +188,7 @@ bool renderer::renderInit () {
 			(float) (-0.5 / info->height), (float) (0.5 * info->height));
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->chromaWidth, info->height, internalType, info),
+			new frameGPUi (info->chromaWidth, info->height, internalType, false, info),
 			render420to422SP, 1, 0));
 		LOGD ("Upsample chroma height");
 	}
@@ -210,7 +210,7 @@ bool renderer::renderInit () {
 		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
+			new frameGPUi (info->width, info->height, internalType, false, info),
 			render422to444SP, 0, 0));
 		LOGD ("Upsample chroma width");
 	}
@@ -249,7 +249,7 @@ bool renderer::renderInit () {
 		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
+			new frameGPUi (info->width, info->height, internalType, false, info),
 			renderBlurXSP, 1, 0));
 		LOGD ("Debanding: blur width");
 
@@ -267,7 +267,7 @@ bool renderer::renderInit () {
 		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
+			new frameGPUi (info->width, info->height, internalType, false, info),
 			renderBlurYSP, 1, 0));
 		LOGD ("Debanding: blur height");
 
@@ -286,7 +286,7 @@ bool renderer::renderInit () {
 			(float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0));
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
+			new frameGPUi (info->width, info->height, internalType, false, info),
 			renderDebandSP, 0, 0));
 		LOGD ("Debanding: debanding");
 	}
@@ -307,7 +307,8 @@ bool renderer::renderInit () {
 		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, info),
+			new frameGPUi (info->width, info->height, internalType,
+				((info->width != info->targetWidth) || (info->height != info->targetHeight)) && info->hwScaleLinear, info),
 			renderYuvToRgbSP, 0, 0));
 		LOGD ("YCbCr -> RGB conversion");
 	}
@@ -334,7 +335,7 @@ bool renderer::renderInit () {
 
 	#include "threads/helpers/ditherMatrix.h"
 
-	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, info);
+	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, false, info);
 	glActiveTexture (GL_TEXTURE0 + 3);
 	glBindTexture (GL_TEXTURE_2D, dither->plane);
 	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);

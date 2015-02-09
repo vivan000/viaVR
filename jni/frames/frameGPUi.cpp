@@ -51,7 +51,7 @@ frameGPUi::frameGPUi (int w, int h, pFormat type, bool linear, videoInfo* f) : w
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linear ? GL_LINEAR : GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-	glTexImage2D (GL_TEXTURE_2D, 0, internalFormat, w, h, 0, GL_RGBA, format, NULL);
+	glTexStorage2D (GL_TEXTURE_2D, 1, internalFormat, w, h);
 
 	timecode = 0;
 }

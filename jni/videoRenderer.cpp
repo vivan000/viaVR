@@ -52,6 +52,8 @@ videoRenderer::~videoRenderer () {
 		eglDestroyContext (display, renderContext);
 		eglDestroySurface (display, mainSurface);
 		eglDestroyContext (display, mainContext);
+
+		eglTerminate (display);
 	}
 
 	delete info;
@@ -97,7 +99,6 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	info->hwScaleLinear = true;
 
 	LOGD ("Video decoder connected");
-
 	return true;
 }
 
@@ -222,6 +223,8 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 	}
 
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+	LOGD ("Window added");
 	return true;
 }
 
@@ -276,7 +279,6 @@ bool videoRenderer::init () {
 
 	initialized = true;
 	LOGD ("Initialization: OK");
-
 	return true;
 }
 
@@ -433,33 +435,40 @@ void videoRenderer::loadVbos () {
 }
 
 void videoRenderer::seek (int timecode) {
-	if (initialized) {
-		pause ();
+	if (!initialized)
+		return;
 
-		// stop everything
-		decodeO->stop ();
-		uploadO->stop ();
-		renderO->stop ();
+	pause ();
 
-		// flush queues
-		decodeQueue->flush();
-		uploadQueue->flush();
-		renderQueue->flush();
+	// stop everything
+	decodeO->stop ();
+	uploadO->stop ();
+	renderO->stop ();
 
-		// seek video
-		video->seek (timecode);
+	// flush queues
+	decodeQueue->flush();
+	uploadQueue->flush();
+	renderQueue->flush();
 
-		// restart threads
-		decodeO->start ();
-		uploadO->start ();
-		renderO->start ();
-	}
+	// seek video
+	video->seek (timecode);
+
+	// restart threads
+	decodeO->start ();
+	uploadO->start ();
+	renderO->start ();
 }
 
 void videoRenderer::play (int timecode) {
+	if (!initialized)
+		return;
+
 	presentO->play (timecode);
 }
 
 void videoRenderer::pause () {
+	if (!initialized)
+		return;
+
 	presentO->pause ();
 }

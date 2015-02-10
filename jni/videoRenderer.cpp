@@ -312,15 +312,21 @@ bool videoRenderer::checkExtensions () {
 			extTimerQuery = true;
 	}
 
+	if (cfg->internalType == pFormat::FLOAT16) {
+		if (!extColorHalfFloat)
+			return false;
+		if (!extHalfFloatLinear && cfg->hwScaleLinear)
+			return false;
+	}
+
+	if (cfg->internalType == pFormat::FLOAT32) {
+		if (!extColorFloat)
+			return false;
+		if (!extFloatLinear && cfg->hwScaleLinear)
+			return false;
+	}
+
 /*
-	// half-float texture is target and not supported
-	if ((precisionTex == 1) && !extColorHalfFloat)
-		return false;
-
-	// float texture is target and not supported
-	if ((precisionTex == 2) && !extColorFloat)
-		return false;
-
 	if (extBinningControl)
 		glHint (0x8FB0, 0x8FB3); // BINNING_CONTROL_HINT_QCOM, RENDER_DIRECT_TO_FRAMEBUFFER_QCOM
 

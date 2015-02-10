@@ -97,21 +97,21 @@ void presenter::present () {
 			if (from->timecode < tc + softLate) {
 				if (from->timecode < tc + hardLate) {
 					// if very late - drop current frame
-					LOGI ("hard drop (repeat: %i)", repeat / videoFps);
+					LOGI ("Hard drop (repeat: %i)", repeat / videoFps);
 					repeat -= videoFps;
 				} else if (newFrame && (repeat >= cfg->displayRefreshRate)) {
 					// if just a bit late - try to find best frame to drop (that is repeated more times than others)
-					LOGD ("soft drop (repeat: %i)", repeat / videoFps);
+					LOGD ("Soft drop (repeat: %i)", repeat / videoFps);
 					repeat -= videoFps;
 				}
 			} else if (from->timecode > tc + softEarly) {
 				if (from->timecode > tc + hardEarly) {
 					// if very early - repeat current frame
-					LOGI ("hard repeat (repeat: %i)", repeat / videoFps);
+					LOGI ("Hard repeat (repeat: %i)", repeat / videoFps);
 					repeat += videoFps;
 				} else if (newFrame && (repeat <= repeatLim)) {
 					// if just a bit early - try to find best frame to repeat (that is repeated less times than others)
-					LOGD ("soft repeat (repeat: %i)", repeat / videoFps);
+					LOGD ("Soft repeat (repeat: %i)", repeat / videoFps);
 					repeat += videoFps;
 				}
 			}
@@ -131,6 +131,8 @@ void presenter::getNextFrame () {
 
 		frameNumber++;
 		newFrame = true;
+	} else {
+		LOGW ("Render queue is empty");
 	}
 
 	repeat += cfg->displayRefreshRate;
@@ -145,13 +147,13 @@ void presenter::presentFrame () {
 
 	if (presentedFrames > 1) {
 		if (deltaPrev2 >= 50.0)
-			LOGE ("display drop %5.2f ms", deltaPrev2);
+			LOGW ("Display drop %5.2f ms", deltaPrev2);
 	}
-	/*
-	LOGD ("frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
-		frameNumber, from->timecode, tcNow (), presentedFrames > 0 ? deltaPrev : 0.0,
-		presentedFrames > 1 ? deltaPrev2 : 0.0, repeat);
-	*/
+
+	if (cfg->logEachFrame)
+		LOGD ("Frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
+			frameNumber, from->timecode, tcNow (), presentedFrames > 0 ? deltaPrev : 0.0,
+			presentedFrames > 1 ? deltaPrev2 : 0.0, repeat);
 
 	glBindTexture (GL_TEXTURE_2D, from->plane);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);

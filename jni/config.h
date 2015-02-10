@@ -38,4 +38,6 @@ struct config {
 
 	int displayMode = 1;
 	int displayRefreshRate = 60;
+
+	bool logEachFrame = false;
 };

@@ -27,9 +27,9 @@ frameGPUu::frameGPUu (videoInfo* f, config* cfg) {
 	for (int i = 0; i < numberOfPlanes; i++) {
 		glBindTexture (GL_TEXTURE_2D, plane[i]);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-			f->halfWidth && cfg->hwChromaLinear && i ? GL_LINEAR : GL_NEAREST);
+			f->halfWidth && cfg->hwChroma && i ? GL_LINEAR : GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-			f->halfWidth && cfg->hwChromaLinear && i ? GL_LINEAR : GL_NEAREST);
+			f->halfWidth && cfg->hwChroma && i ? GL_LINEAR : GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		if (!i)

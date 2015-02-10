@@ -17,19 +17,25 @@
  * License along with viaVR. If not, see http://www.gnu.org/licenses
  */
 
+#pragma once
 #include "frames/frames.h"
 
-frameCPU::frameCPU (videoInfo* f, config* cfg) {
-	plane = new char[f->width * f->height * f->Bpp / 8];
+struct config {
+	int targetX, targetY;
+	int targetWidth, targetHeight;
 
-	timecode = 0;
-}
+	bool hwChroma = true;
+	bool hwScale = true;
+	bool hwChromaLinear = true;
+	bool hwScaleLinear = true;
 
-frameCPU::~frameCPU () {
-	delete[] plane;
-}
+	pFormat internalType = pFormat::INT10;
+	bool highp = true;
+	int targetBitdepth = 8;
 
-void frameCPU::swap (frameCPU& that) {
-	std::swap (plane, that.plane);
-	std::swap (timecode, that.timecode);
-}
+	bool debanding = false;
+	double debandThreshold = 16.0;
+
+	int displayMode = 1;
+	int displayRefreshRate = 60;
+};

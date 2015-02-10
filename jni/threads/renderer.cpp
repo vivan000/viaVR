@@ -19,9 +19,10 @@
 
 #include "threads/threads.h"
 
-renderer::renderer (videoInfo* info, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
+renderer::renderer (videoInfo* info, config* cfg, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface renderPbuffer, EGLContext renderContext, GLuint* vboIds) {
 	renderer::info = info;
+	renderer::cfg = cfg;
 	renderer::uploadQueue = uploadQueue;
 	renderer::renderQueue = renderQueue;
 
@@ -34,8 +35,8 @@ renderer::renderer (videoInfo* info, queue<frameGPUu>* uploadQueue, queue<frameG
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
 	glDisable (GL_DITHER);
 
-	from = new frameGPUu (info);
-	to = new frameGPUo (info);
+	from = new frameGPUu (info, cfg);
+	to = new frameGPUo (info, cfg);
 
 	if (renderInit ())
 		LOGD ("Rendering chain: OK");
@@ -93,7 +94,7 @@ void renderer::render () {
 				if (!(*passIt)->dither)
 					(*passIt)->execute ();
 				else
-					(*passIt)->execute (to->plane, info->targetWidth, info->targetHeight);
+					(*passIt)->execute (to->plane, cfg->targetWidth, cfg->targetHeight);
 
 			glFlush ();
 
@@ -107,6 +108,8 @@ void renderer::render () {
 }
 
 bool renderer::renderInit () {
+	const char* precision = cfg->highp ? "highp" : "mediump";
+
 	// enable coordinates
 	const GLuint vertexCoordLoc = 0;
 	glBindBuffer (GL_ARRAY_BUFFER, vboIds[0]);
@@ -130,7 +133,7 @@ bool renderer::renderInit () {
 				#include "shaders/planarToInternal.h"
 
 			shader renderToInternalShader (renderVP, renderToInternalFP,
-				"highp", info->halfWidth && info->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
+				precision, info->halfWidth && cfg->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
 			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
 			if (!renderToInternalSP)
 				return false;
@@ -139,11 +142,11 @@ bool renderer::renderInit () {
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
-			if (info->halfWidth && info->hwChroma)
+			if (info->halfWidth && cfg->hwChroma)
 				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, internalType, false, info),
+				new frameGPUi (info->width, info->height, cfg->internalType, false),
 				renderToInternalSP, 0, 0));
 			LOGD ("Planar to internal");
 
@@ -154,7 +157,7 @@ bool renderer::renderInit () {
 			const char* renderRgbToInteralFP =
 				#include "shaders/displayFrag.h"
 
-			shader renderToInternalShader (renderVP, renderRgbToInteralFP, "highp");
+			shader renderToInternalShader (renderVP, renderRgbToInteralFP);
 			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
 			if (!renderToInternalSP)
 				return false;
@@ -163,7 +166,7 @@ bool renderer::renderInit () {
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"), 0);
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, internalType, false, info),
+				new frameGPUi (info->width, info->height, cfg->internalType, false),
 				renderToInternalSP, 0, 0));
 			LOGD ("RGBA to internal");
 
@@ -172,7 +175,7 @@ bool renderer::renderInit () {
 	}
 
 	// convert 4:2:0 -> 4:2:2
-	if (info->halfHeight && !info->hwChroma) {
+	if (info->halfHeight && !cfg->hwChroma) {
 		const char* render420to422FP =
 			#include "shaders/up420to422.h"
 
@@ -188,13 +191,13 @@ bool renderer::renderInit () {
 			(float) (-0.5 / info->height), (float) (0.5 * info->height));
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->chromaWidth, info->height, internalType, false, info),
+			new frameGPUi (info->chromaWidth, info->height, cfg->internalType, false),
 			render420to422SP, 1, 0));
 		LOGD ("Upsample chroma height");
 	}
 
 	// convert 4:2:2 -> 4:4:4
-	if (info->halfWidth && !info->hwChroma) {
+	if (info->halfWidth && !cfg->hwChroma) {
 		const char* render422to444FP =
 			#include "shaders/up422to444.h"
 
@@ -210,16 +213,13 @@ bool renderer::renderInit () {
 		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, false, info),
+			new frameGPUi (info->width, info->height, cfg->internalType, false),
 			render422to444SP, 0, 0));
 		LOGD ("Upsample chroma width");
 	}
 
 	// debanding
-	bool debanding = false;
-	const double debandThreshold = 16.0;
-
-	if (debanding) {
+	if (cfg->debanding) {
 		const GLfloat blurWeight[] = {
 			0.0886884268, 0.1111888680, 0.0959098625, 0.0760291736,
 			0.0553875087, 0.0370815002, 0.0228147565, 0.0128999036};
@@ -249,7 +249,7 @@ bool renderer::renderInit () {
 		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, false, info),
+			new frameGPUi (info->width, info->height, cfg->internalType, false),
 			renderBlurXSP, 1, 0));
 		LOGD ("Debanding: blur width");
 
@@ -267,7 +267,7 @@ bool renderer::renderInit () {
 		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, false, info),
+			new frameGPUi (info->width, info->height, cfg->internalType, false),
 			renderBlurYSP, 1, 0));
 		LOGD ("Debanding: blur height");
 
@@ -283,10 +283,12 @@ bool renderer::renderInit () {
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "blur"), 1);
 		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
-			(float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0), (float) (debandThreshold / 255.0));
+			(float) (cfg->debandThreshold / 255.0),
+			(float) (cfg->debandThreshold / 255.0),
+			(float) (cfg->debandThreshold / 255.0));
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType, false, info),
+			new frameGPUi (info->width, info->height, cfg->internalType, false),
 			renderDebandSP, 0, 0));
 		LOGD ("Debanding: debanding");
 	}
@@ -307,8 +309,8 @@ bool renderer::renderInit () {
 		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, internalType,
-				((info->width != info->targetWidth) || (info->height != info->targetHeight)) && info->hwScaleLinear, info),
+			new frameGPUi (info->width, info->height, cfg->internalType,
+				((info->width != cfg->targetWidth) || (info->height != cfg->targetHeight)) && cfg->hwScaleLinear),
 			renderYuvToRgbSP, 0, 0));
 		LOGD ("YCbCr -> RGB conversion");
 	}
@@ -327,15 +329,15 @@ bool renderer::renderInit () {
 	glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), 3);
 
 	glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
-		(float) (pow (2.0, bitdepth) - 1.0),
-		(float) (1.0 / (pow (2.0, bitdepth) - 1.0)));
+		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
+		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));
 	glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
-		(float) ((double) info->targetWidth / 32.0),
-		(float) ((double) info->targetHeight / 32.0));
+		(float) ((double) cfg->targetWidth / 32.0),
+		(float) ((double) cfg->targetHeight / 32.0));
 
 	#include "threads/helpers/ditherMatrix.h"
 
-	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, false, info);
+	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, false);
 	glActiveTexture (GL_TEXTURE0 + 3);
 	glBindTexture (GL_TEXTURE_2D, dither->plane);
 	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);

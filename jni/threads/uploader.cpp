@@ -19,9 +19,10 @@
 
 #include "threads/threads.h"
 
-uploader::uploader (videoInfo* info, queue<frameCPU>* decodeQueue, queue<frameGPUu>* uploadQueue,
+uploader::uploader (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, queue<frameGPUu>* uploadQueue,
 		EGLDisplay display, EGLSurface uploadPbuffer, EGLContext uploadContext) {
 	uploader::info = info;
+	uploader::cfg = cfg;
 	uploader::decodeQueue = decodeQueue;
 	uploader::uploadQueue = uploadQueue;
 
@@ -30,8 +31,8 @@ uploader::uploader (videoInfo* info, queue<frameCPU>* decodeQueue, queue<frameGP
 	uploader::context = uploadContext;
 
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
-	from = new frameCPU (info);
-	to = new frameGPUu (info);
+	from = new frameCPU (info, cfg);
+	to = new frameGPUu (info, cfg);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 	start ();

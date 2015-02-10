@@ -19,9 +19,10 @@
 
 #include "threads/threads.h"
 
-presenter::presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
+presenter::presenter (videoInfo* info, config* cfg, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface mainSurface, EGLContext mainContext) {
 	presenter::info = info;
+	presenter::cfg = cfg;
 	presenter::renderQueue = renderQueue;
 
 	presenter::display = display;
@@ -33,7 +34,7 @@ presenter::presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
 	softLate = 0;
 	softEarly = 2000 / videoFps;
 	hardEarly = 4000 / videoFps;
-	repeatLim = displayRefreshRate / videoFps * videoFps;
+	repeatLim = cfg->displayRefreshRate / videoFps * videoFps;
 
 	eglMakeCurrent (display, surface, surface, context);
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
@@ -48,7 +49,7 @@ presenter::presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
 	displaySP = displayShader.loadProgram ();
 	glUseProgram (displaySP);
 	glUniform1i (glGetUniformLocation (displaySP, "video"), 0);
-	from = new frameGPUo (info);
+	from = new frameGPUo (info, cfg);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 	playing = false;
@@ -98,7 +99,7 @@ void presenter::present () {
 					// if very late - drop current frame
 					LOGI ("hard drop (repeat: %i)", repeat / videoFps);
 					repeat -= videoFps;
-				} else if (newFrame && (repeat >= displayRefreshRate)) {
+				} else if (newFrame && (repeat >= cfg->displayRefreshRate)) {
 					// if just a bit late - try to find best frame to drop (that is repeated more times than others)
 					LOGD ("soft drop (repeat: %i)", repeat / videoFps);
 					repeat -= videoFps;
@@ -132,7 +133,7 @@ void presenter::getNextFrame () {
 		newFrame = true;
 	}
 
-	repeat += displayRefreshRate;
+	repeat += cfg->displayRefreshRate;
 }
 
 void presenter::presentFrame () {

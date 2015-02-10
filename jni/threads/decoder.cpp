@@ -19,12 +19,12 @@
 
 #include "threads/threads.h"
 
-decoder::decoder (videoInfo* info, queue<frameCPU>* decodeQueue, IVideoDecoder* video) {
+decoder::decoder (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, IVideoDecoder* video) {
 	size = info->width * info->height * info->Bpp / 8;
 	decoder::decodeQueue = decodeQueue;
 	decoder::video = video;
 
-	to = new frameCPU (info);
+	to = new frameCPU (info, cfg);
 
 	start ();
 }

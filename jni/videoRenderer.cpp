@@ -26,6 +26,7 @@
 #include "videoRenderer.h"
 
 videoRenderer::videoRenderer () {
+	cfg = new config ();
 }
 
 videoRenderer::~videoRenderer () {
@@ -57,6 +58,7 @@ videoRenderer::~videoRenderer () {
 	}
 
 	delete info;
+	delete cfg;
 }
 
 const char* videoRenderer::getName () {
@@ -92,11 +94,6 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", video->getMatrix () != 0 ? "upstream" : "guess");
 	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", video->getRange () != 0 ? "upstream" : "guess");
 	LOGD ("Framerate: %i/%i", info->fpsNumerator, info->fpsDenominator);
-
-	info->hwChroma = true;
-	info->hwChromaLinear = true;
-	info->hwScale = true;
-	info->hwScaleLinear = true;
 
 	LOGD ("Video decoder connected");
 	return true;
@@ -134,7 +131,7 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		EGL_HEIGHT, 1,
 		EGL_NONE};
 
-	EGLConfig config;
+	EGLConfig choosedConfig;
 	EGLint numConfigs;
 	EGLint format;
 	bool priority = true;
@@ -150,27 +147,27 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	if (!eglChooseConfig (display, attribListWindowConfig, &config, 1, &numConfigs)) {
+	if (!eglChooseConfig (display, attribListWindowConfig, &choosedConfig, 1, &numConfigs)) {
 		LOGE ("ChooseConfig error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	if (!eglGetConfigAttrib (display, config, EGL_NATIVE_VISUAL_ID, &format)) {
+	if (!eglGetConfigAttrib (display, choosedConfig, EGL_NATIVE_VISUAL_ID, &format)) {
 		LOGE ("GetConfigAttrib error: %s", getEglErrorStr ());
 		return false;
 	}
 
 	ANativeWindow_setBuffersGeometry (window, 0, 0, format);
 
-	mainSurface = eglCreateWindowSurface (display, config, window, 0);
+	mainSurface = eglCreateWindowSurface (display, choosedConfig, window, 0);
 	if (!mainSurface) {
 		LOGE ("CreateWindowSurface error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	mainContext = eglCreateContext (display, config, 0, attribListMainContext);
+	mainContext = eglCreateContext (display, choosedConfig, 0, attribListMainContext);
 	if (!mainContext) {
-		mainContext = eglCreateContext (display, config, 0, attribListNoPriorityContext);
+		mainContext = eglCreateContext (display, choosedConfig, 0, attribListNoPriorityContext);
 		if (!mainContext) {
 			LOGE ("CreateContext error: %s", getEglErrorStr ());
 			return false;
@@ -191,31 +188,31 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	if (!eglChooseConfig (display, attribListPbufferConfig, &config, 1, &numConfigs)) {
+	if (!eglChooseConfig (display, attribListPbufferConfig, &choosedConfig, 1, &numConfigs)) {
 		LOGE ("Pbuffer ChooseConfig error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	uploadPbuffer = eglCreatePbufferSurface (display, config, attribListPbufferSurface);
+	uploadPbuffer = eglCreatePbufferSurface (display, choosedConfig, attribListPbufferSurface);
 	if (!uploadPbuffer) {
 		LOGE ("Upload pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	uploadContext = eglCreateContext (display, config, mainContext,
+	uploadContext = eglCreateContext (display, choosedConfig, mainContext,
 		priority ? attribListBackgroundContext : attribListNoPriorityContext);
 	if (!uploadContext) {
 		LOGE ("Upload pbuffer CreateContext error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	renderPbuffer = eglCreatePbufferSurface (display, config, attribListPbufferSurface);
+	renderPbuffer = eglCreatePbufferSurface (display, choosedConfig, attribListPbufferSurface);
 	if (!renderPbuffer) {
 		LOGE ("Render pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
 		return false;
 	}
 
-	renderContext = eglCreateContext (display, config, mainContext,
+	renderContext = eglCreateContext (display, choosedConfig, mainContext,
 		priority ? attribListBackgroundContext : attribListNoPriorityContext);
 	if (!renderContext) {
 		LOGE ("Render pbuffer CreateContext error: %s", getEglErrorStr ());
@@ -257,9 +254,9 @@ bool videoRenderer::init () {
 	loadVbos ();
 
 	// create queues
-	decodeQueue = new queue<frameCPU> (8, info);
-	uploadQueue = new queue<frameGPUu> (8, info);
-	renderQueue = new queue<frameGPUo> (8, info);
+	decodeQueue = new queue<frameCPU> (8, info, cfg);
+	uploadQueue = new queue<frameGPUu> (8, info, cfg);
+	renderQueue = new queue<frameGPUo> (8, info, cfg);
 
 	// check GL errors
 	if (!checkGlStatus ())
@@ -268,10 +265,10 @@ bool videoRenderer::init () {
 
 	// start threads
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	presentO = new presenter (info, renderQueue, display, mainSurface, mainContext);
-	decodeO = new decoder (info, decodeQueue, video);
-	uploadO = new uploader (info, decodeQueue, uploadQueue, display, uploadPbuffer, uploadContext);
-	renderO = new renderer (info, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
+	presentO = new presenter (info, cfg, renderQueue, display, mainSurface, mainContext);
+	decodeO = new decoder (info, cfg, decodeQueue, video);
+	uploadO = new uploader (info, cfg, decodeQueue, uploadQueue, display, uploadPbuffer, uploadContext);
+	renderO = new renderer (info, cfg, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
 
 	// wait till there's at least 1 frame to show
 	while (renderQueue->isEmpty ())
@@ -345,56 +342,56 @@ bool videoRenderer::checkExtensions () {
 }
 
 void videoRenderer::setAspect () {
-	int mode = 1;
-	switch (mode) {
+	switch (cfg->displayMode) {
 		// stretch
 		case 0:
-			info->targetX = 0;
-			info->targetY = 0;
-			info->targetWidth = surfaceWidth;
-			info->targetHeight = surfaceHeight;
+			cfg->targetX = 0;
+			cfg->targetY = 0;
+			cfg->targetWidth = surfaceWidth;
+			cfg->targetHeight = surfaceHeight;
 			break;
 
 		// touch from inside
 		case 1:
 			if ((long long) surfaceWidth * info->height * info->sarHeight < (long long) info->width * info->sarWidth * surfaceHeight) {
-				info->targetX = 0;
-				info->targetWidth = surfaceWidth;
-				info->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
-				info->targetY = (surfaceHeight - info->targetHeight) / 2;
+				cfg->targetX = 0;
+				cfg->targetWidth = surfaceWidth;
+				cfg->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
+				cfg->targetY = (surfaceHeight - cfg->targetHeight) / 2;
 			} else {
-				info->targetY = 0;
-				info->targetHeight = surfaceHeight;
-				info->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
-				info->targetX = (surfaceWidth - info->targetWidth) / 2;
+				cfg->targetY = 0;
+				cfg->targetHeight = surfaceHeight;
+				cfg->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
+				cfg->targetX = (surfaceWidth - cfg->targetWidth) / 2;
 			}
 			break;
 
 		// touch from outside
 		case 2:
 			if ((long long) surfaceWidth * info->height * info->sarHeight > (long long) info->width * info->sarWidth * surfaceHeight) {
-				info->targetX = 0;
-				info->targetWidth = surfaceWidth;
-				info->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
-				info->targetY = (surfaceHeight - info->targetHeight) / 2;
+				cfg->targetX = 0;
+				cfg->targetWidth = surfaceWidth;
+				cfg->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
+				cfg->targetY = (surfaceHeight - cfg->targetHeight) / 2;
 			} else {
-				info->targetY = 0;
-				info->targetHeight = surfaceHeight;
-				info->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
-				info->targetX = (surfaceWidth - info->targetWidth) / 2;
+				cfg->targetY = 0;
+				cfg->targetHeight = surfaceHeight;
+				cfg->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
+				cfg->targetX = (surfaceWidth - cfg->targetWidth) / 2;
 			}
 			break;
 
 		// 100%
 		case 3:
-			info->targetWidth = info->width;
-			info->targetHeight = info->height;
-			info->targetX = (surfaceWidth - info->targetWidth) / 2;
-			info->targetY = (surfaceHeight - info->targetHeight) / 2;
+			cfg->targetWidth = info->width;
+			cfg->targetHeight = info->height;
+			cfg->targetX = (surfaceWidth - cfg->targetWidth) / 2;
+			cfg->targetY = (surfaceHeight - cfg->targetHeight) / 2;
 			break;
 	}
 
-	glViewport (info->targetX, info->targetY, info->targetWidth, info->targetHeight);
+	glViewport (cfg->targetX, cfg->targetY, cfg->targetWidth, cfg->targetHeight);
+	LOGD ("Target rectangle: %i %i %i %i", cfg->targetX, cfg->targetY, cfg->targetWidth, cfg->targetHeight);
 }
 
 void videoRenderer::loadVbos () {

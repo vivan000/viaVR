@@ -19,14 +19,14 @@
 
 #include "frames/frames.h"
 
-frameGPUo::frameGPUo (videoInfo* f) {
+frameGPUo::frameGPUo (videoInfo* f, config* cfg) {
 	glGenTextures (1, &plane);
 	glBindTexture (GL_TEXTURE_2D, plane);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexStorage2D (GL_TEXTURE_2D, 1, GL_RGBA8, f->targetWidth, f->targetHeight);
+	glTexStorage2D (GL_TEXTURE_2D, 1, GL_RGBA8, cfg->targetWidth, cfg->targetHeight);
 
 	timecode = 0;
 }

@@ -34,7 +34,7 @@ typedef std::vector<renderingPass*> rPass;
 
 class decoder {
 public:
-	decoder (videoInfo* info, queue<frameCPU>* decodeQueue, IVideoDecoder* video);
+	decoder (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, IVideoDecoder* video);
 	~decoder ();
 	void stop ();
 	void start ();
@@ -53,7 +53,7 @@ private:
 
 class uploader {
 public:
-	uploader (videoInfo* info, queue<frameCPU>* decodeQueue, queue<frameGPUu>* uploadQueue,
+	uploader (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, queue<frameGPUu>* uploadQueue,
 		EGLDisplay display, EGLSurface uploadPbuffer, EGLContext uploadContext);
 	~uploader ();
 	void stop ();
@@ -62,6 +62,7 @@ public:
 private:
 	void upload ();
 
+	config* cfg;
 	videoInfo* info;
 	queue<frameCPU>* decodeQueue;
 	queue<frameGPUu>* uploadQueue;
@@ -78,7 +79,7 @@ private:
 
 class renderer {
 public:
-	renderer (videoInfo* info, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
+	renderer (videoInfo* info, config* cfg, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface renderPbuffer, EGLContext renderContext, GLuint* vboIds);
 	~renderer ();
 	void stop ();
@@ -89,6 +90,7 @@ private:
 	bool renderInit ();
 
 	videoInfo* info;
+	config* cfg;
 	queue<frameGPUu>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
 
@@ -104,15 +106,11 @@ private:
 	frameGPUo* to;
 	bool working, joined;
 	std::thread thread;
-
-	pFormat internalType = pFormat::INT10;
-	const char* precision = "highp";
-	int bitdepth = 8;
 };
 
 class presenter {
 public:
-	presenter (videoInfo* info, queue<frameGPUo>* renderQueue,
+	presenter (videoInfo* info, config* cfg, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface mainSurface, EGLContext mainContext);
 	~presenter ();
 	void pause ();
@@ -126,6 +124,7 @@ private:
 	int tcNow ();
 
 	videoInfo* info;
+	config* cfg;
 	queue<frameGPUo>* renderQueue;
 
 	EGLDisplay display;
@@ -147,5 +146,4 @@ private:
 	int hardLate, softLate, softEarly, hardEarly;
 
 	int videoFps;
-	int displayRefreshRate = 60;
 };

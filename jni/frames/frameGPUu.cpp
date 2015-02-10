@@ -19,7 +19,7 @@
 
 #include "frames/frames.h"
 
-frameGPUu::frameGPUu (videoInfo* f) {
+frameGPUu::frameGPUu (videoInfo* f, config* cfg) {
 	numberOfPlanes = f->planes;
 	plane = new GLuint[numberOfPlanes];
 	glGenTextures (numberOfPlanes, plane);
@@ -27,14 +27,13 @@ frameGPUu::frameGPUu (videoInfo* f) {
 	for (int i = 0; i < numberOfPlanes; i++) {
 		glBindTexture (GL_TEXTURE_2D, plane[i]);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-			f->halfWidth && f->hwChromaLinear && i ? GL_LINEAR : GL_NEAREST);
+			f->halfWidth && cfg->hwChromaLinear && i ? GL_LINEAR : GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-			f->halfWidth && f->hwChromaLinear && i ? GL_LINEAR : GL_NEAREST);
+			f->halfWidth && cfg->hwChromaLinear && i ? GL_LINEAR : GL_NEAREST);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		if (!i)
 			glTexStorage2D (GL_TEXTURE_2D, 1, f->internalLumaFormat, f->width, f->height);
-
 		else
 			glTexStorage2D (GL_TEXTURE_2D, 1, f->internalChromaFormat, f->chromaWidth, f->chromaHeight);
 	}

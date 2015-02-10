@@ -50,6 +50,7 @@ private:
 	bool initialized = false;
 	IVideoDecoder* video;
 	videoInfo* info;
+	config* cfg;
 	GLuint vboIds[3];
 
 	queue<frameCPU>* decodeQueue;

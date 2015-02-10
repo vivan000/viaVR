@@ -23,7 +23,7 @@
 template <class T>
 class queue {
 public:
-	queue (int size, videoInfo* f);
+	queue (int size, videoInfo* f, config* cfg);
 	~queue ();
 	void push (T*);
 	void pop (T*);
@@ -42,10 +42,10 @@ private:
 };
 
 template <class T>
-queue<T>::queue (int size, videoInfo* f) : capacity (size) {
+queue<T>::queue (int size, videoInfo* f, config* cfg) : capacity (size) {
 	buffer = new T*[capacity];
 	for (int i = 0; i < capacity; i++) {
-		buffer[i] = new T (f);
+		buffer[i] = new T (f, cfg);
 	}
 	queue::first = 0;
 	queue::size = 0;

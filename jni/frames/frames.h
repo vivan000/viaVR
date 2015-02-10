@@ -20,6 +20,7 @@
 #pragma once
 #include <algorithm>
 #include "videoInfo.h"
+#include "config.h"
 
 // frame for upload - CPU
 class frameCPU {
@@ -27,7 +28,7 @@ public:
 	char* plane;
 	int timecode;
 
-	frameCPU (videoInfo* f);
+	frameCPU (videoInfo* f, config* cfg);
 	~frameCPU ();
 	void swap (frameCPU& that);
 };
@@ -38,7 +39,7 @@ public:
 	GLuint* plane;
 	int timecode;
 
-	frameGPUu (videoInfo* f);
+	frameGPUu (videoInfo* f, config* cfg);
 	~frameGPUu ();
 	void swap (frameGPUu& that);
 
@@ -53,7 +54,7 @@ public:
 	int timecode;
 	const int width, height;
 
-	frameGPUi (int w, int h, pFormat type, bool linear, videoInfo* f);
+	frameGPUi (int w, int h, pFormat type, bool linear);
 	~frameGPUi ();
 };
 
@@ -63,7 +64,7 @@ public:
 	GLuint plane;
 	int timecode;
 
-	frameGPUo (videoInfo* f);
+	frameGPUo (videoInfo* f, config* cfg);
 	~frameGPUo ();
 	void swap (frameGPUo& that);
 };

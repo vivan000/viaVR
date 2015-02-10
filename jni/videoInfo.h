@@ -88,14 +88,8 @@ public:
 	int chromaWidth, chromaHeight;
 	int offset1, offset2;
 
-	int targetX, targetY;
-	int targetWidth, targetHeight;
-
 	GLfloat colorConversion[9];
 	GLfloat colorOffset[3];
-
-	bool hwChroma, hwScale;
-	bool hwChromaLinear, hwScaleLinear;
 
 	int fpsNumerator, fpsDenominator;
 	int sarWidth, sarHeight;

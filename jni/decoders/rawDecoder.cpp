@@ -74,17 +74,17 @@ rawDecoder::rawDecoder () {
 	if (!sarHeight)
 		sarHeight = 1;
 
-	int size = width * height * info->Bpp / 8;
+	bufsize = width * height * info->Bpp / 8;
 
 	std::streampos fpos = f.tellg ();
-	frames = (int) ((fsize - fpos) / (size + 6));
+	frames = (int) ((fsize - fpos) / (bufsize + 6));
 
 	framesBuf = new char*[frames];
 	for (int i = 0; i < frames; i++) {
-		framesBuf[i] = new char[size];
+		framesBuf[i] = new char[bufsize];
 
 		f.getline (str, 100);
-		f.read (framesBuf[i], size);
+		f.read (framesBuf[i], bufsize);
 	}
 
 	f.close ();
@@ -95,7 +95,8 @@ rawDecoder::rawDecoder () {
 
 int rawDecoder::getNextVideoframe (char* buf, int size) {
 
-	memcpy (buf, framesBuf[decoderCount % frames], size);
+	if (bufsize <= size)
+		memcpy (buf, framesBuf[decoderCount % frames], bufsize);
 
 	return decoderCount++ * 1000 * fpsDenominator / fpsNumerator;
 }

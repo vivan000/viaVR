@@ -18,27 +18,24 @@
  */
 
 #pragma once
-#include "frames/frames.h"
+#include <GLES3/gl3.h>
 
-struct config {
-	int targetX, targetY;
-	int targetWidth, targetHeight;
+class performance {
+public:
+	performance (int size, int selection);
+	~performance ();
+	void begin ();
+	void end ();
+	float measure ();
 
-	bool hwChroma = true;
-	bool hwScale = true;
-	bool hwChromaLinear = true;
-	bool hwScaleLinear = true;
+private:
+	bool ready = false;
+	const int size;
+	const int selection;
 
-	pFormat internalType = pFormat::INT10;
-	bool highp = true;
-	int targetBitdepth = 8;
+	int current = 0;
+	int counter = 0;
+	float total = 0.0;
 
-	bool debanding = false;
-	double debandThreshold = 16.0;
-
-	int displayMode = 1;
-	int displayRefreshRate = 60;
-
-	bool logEachFrame = false;
-	bool measurePerformance = false;
+	GLuint* queries;
 };

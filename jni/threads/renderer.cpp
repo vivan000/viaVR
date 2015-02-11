@@ -77,6 +77,8 @@ void renderer::stop () {
 void renderer::render () {
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
 
+	performance perf (8, 100);
+
 	joined = false;
 	working = true;
 	while (working) {
@@ -84,6 +86,9 @@ void renderer::render () {
 			uploadQueue->pop (from);
 
 			to->timecode = from->timecode;
+
+			if (cfg->measurePerformance)
+				perf.begin ();
 
 			for (int i = 0; i < info->planes; i++) {
 				glActiveTexture (GL_TEXTURE0 + i);
@@ -96,7 +101,16 @@ void renderer::render () {
 				else
 					(*passIt)->execute (to->plane, cfg->targetWidth, cfg->targetHeight);
 
+			if (cfg->measurePerformance)
+				perf.end ();
+
 			glFlush ();
+
+			if (cfg->measurePerformance) {
+				float avg = perf.measure ();
+				if (avg)
+					LOGD ("Rendering: %6.3f ms", avg);
+			}
 
 			renderQueue->push (to);
 		} else {

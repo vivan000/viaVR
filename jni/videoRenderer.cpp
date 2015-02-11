@@ -326,6 +326,9 @@ bool videoRenderer::checkExtensions () {
 			return false;
 	}
 
+	if (!extTimerQuery)
+		cfg->measurePerformance = false;
+
 /*
 	if (extBinningControl)
 		glHint (0x8FB0, 0x8FB3); // BINNING_CONTROL_HINT_QCOM, RENDER_DIRECT_TO_FRAMEBUFFER_QCOM

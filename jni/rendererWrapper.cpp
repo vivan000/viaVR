@@ -11,6 +11,9 @@ static IVideoRenderer* r = 0;
 static rawDecoder video;
 
 JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnStart (JNIEnv* jenv, jobject obj) {
+	r = new videoRenderer;
+	video.seek (0);
+	r->addVideoDecoder (&video);
 }
 
 JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnResume (JNIEnv* jenv, jobject obj) {
@@ -27,10 +30,7 @@ JNIEXPORT void Java_vivan_viavr_MainActivity_nativeOnStop (JNIEnv* jenv, jobject
 JNIEXPORT void Java_vivan_viavr_MainActivity_nativeSetSurface (JNIEnv* jenv, jobject obj, jobject surface) {
 	if (surface) {
 		window = ANativeWindow_fromSurface (jenv, surface);
-		video.seek (0);
-		r = new videoRenderer;
 		r->addWindow (window);
-		r->addVideoDecoder (&video);
 		r->init ();
 		r->play (0);
 	} else {

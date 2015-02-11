@@ -19,19 +19,17 @@
 
 #pragma once
 #include <GLES3/gl3.h>
-
 #define FOURCC(a, b, c, d) ((a) | (b << 8) | (c << 16) | (d << 24))
 
-enum class pFormat {
-	NONE,
-
-	// internal
+enum class iFormat {
 	INT8,		// normalized  8-bit integer rgba (RGBA8)
 	INT10,		// normalized 10-bit integer rgba (RGB10_A2)
 	FLOAT16,	// half float rgba (RGBA16F)
 	FLOAT32,	// full float rgba (RGBA32F)
 	DITHER,		// INT10 + repeat texture
+};
 
+enum class pFormat {
 	// 8-bit planar
 	P008 = FOURCC ('I', '4', '2', '0'), //  8 bit 4:2:0
 	P208 = FOURCC ('Y', '4', '2', 'B'), //  8 bit 4:2:2

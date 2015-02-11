@@ -351,7 +351,7 @@ bool renderer::renderInit () {
 
 	#include "threads/helpers/ditherMatrix.h"
 
-	frameGPUi* dither = new frameGPUi (32, 32, pFormat::DITHER, false);
+	frameGPUi* dither = new frameGPUi (32, 32, iFormat::DITHER, false);
 	glActiveTexture (GL_TEXTURE0 + 3);
 	glBindTexture (GL_TEXTURE_2D, dither->plane);
 	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);

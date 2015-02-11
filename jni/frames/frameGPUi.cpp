@@ -19,27 +19,27 @@
 
 #include "frames/frames.h"
 
-frameGPUi::frameGPUi (int w, int h, pFormat type, bool linear) : width (w), height (h) {
+frameGPUi::frameGPUi (int w, int h, iFormat type, bool linear) : width (w), height (h) {
 	GLenum internalFormat, format;
 	bool repeat = false;
 	switch (type) {
-		case pFormat::INT8:
+		case iFormat::INT8:
 			internalFormat = GL_RGBA8;
 			format = GL_UNSIGNED_BYTE;
 			break;
-		case pFormat::INT10:
+		case iFormat::INT10:
 			internalFormat = GL_RGB10_A2;
 			format = GL_UNSIGNED_INT_2_10_10_10_REV;
 			break;
-		case pFormat::FLOAT16:
+		case iFormat::FLOAT16:
 			internalFormat = GL_RGBA16F;
 			format = GL_HALF_FLOAT;
 			break;
-		case pFormat::FLOAT32:
+		case iFormat::FLOAT32:
 			internalFormat = GL_RGBA32F;
 			format = GL_FLOAT;
 			break;
-		case pFormat::DITHER:
+		case iFormat::DITHER:
 			internalFormat = GL_RGB10_A2;
 			format = GL_UNSIGNED_INT_2_10_10_10_REV;
 			repeat = true;

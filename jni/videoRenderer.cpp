@@ -312,14 +312,14 @@ bool videoRenderer::checkExtensions () {
 			extTimerQuery = true;
 	}
 
-	if (cfg->internalType == pFormat::FLOAT16) {
+	if (cfg->internalType == iFormat::FLOAT16) {
 		if (!extColorHalfFloat)
 			return false;
 		if (!extHalfFloatLinear && cfg->hwScaleLinear)
 			return false;
 	}
 
-	if (cfg->internalType == pFormat::FLOAT32) {
+	if (cfg->internalType == iFormat::FLOAT32) {
 		if (!extColorFloat)
 			return false;
 		if (!extFloatLinear && cfg->hwScaleLinear)

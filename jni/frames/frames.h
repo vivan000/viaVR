@@ -54,7 +54,7 @@ public:
 	int timecode;
 	const int width, height;
 
-	frameGPUi (int w, int h, pFormat type, bool linear);
+	frameGPUi (int w, int h, iFormat type, bool linear);
 	~frameGPUi ();
 };
 

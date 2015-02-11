@@ -29,7 +29,7 @@ struct config {
 	bool hwChromaLinear = true;
 	bool hwScaleLinear = true;
 
-	pFormat internalType = pFormat::INT10;
+	iFormat internalType = iFormat::INT10;
 	bool highp = true;
 	int targetBitdepth = 8;
 

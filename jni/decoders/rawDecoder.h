@@ -1,3 +1,4 @@
+#pragma once
 #include "interface/IVideoDecoder.h"
 #include "videoInfo.h"
 

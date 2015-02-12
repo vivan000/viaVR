@@ -34,7 +34,7 @@ struct config {
 	int targetBitdepth = 8;
 
 	bool debanding = false;
-	double debandThreshold = 16.0;
+	double debandThreshold = 2.0;
 
 	int displayMode = 1;
 	int displayRefreshRate = 60;

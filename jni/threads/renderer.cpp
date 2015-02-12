@@ -160,7 +160,7 @@ bool renderer::renderInit () {
 				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, cfg->internalType, false),
+				new frameGPUi (info->width, info->height, cfg->internalType, cfg->debanding),
 				renderToInternalSP, 0, 0));
 			LOGD ("Planar to internal");
 
@@ -234,19 +234,40 @@ bool renderer::renderInit () {
 
 	// debanding
 	if (cfg->debanding) {
-		const GLfloat blurWeight[] = {
-			0.0886884268, 0.1111888680, 0.0959098625, 0.0760291736,
-			0.0553875087, 0.0370815002, 0.0228147565, 0.0128999036};
-		const GLfloat blurOffsetX[] = {
-			(float)  0.6643036225 / info->width, (float)  2.4867343814 / info->width,
-			(float)  4.4761344303 / info->width, (float)  6.4655559368 / info->width,
-			(float)  8.4550083353 / info->width, (float) 10.4445009501 / info->width,
-			(float) 12.4340429621 / info->width, (float) 14.4236433777 / info->width};
-		const GLfloat blurOffsetY[] = {
-			(float)  0.6643036225 / info->height, (float)  2.4867343814 / info->height,
-			(float)  4.4761344303 / info->height, (float)  6.4655559368 / info->height,
-			(float)  8.4550083353 / info->height, (float) 10.4445009501 / info->height,
-			(float) 12.4340429621 / info->height, (float) 14.4236433777 / info->height};
+		const char* renderDownscaleFP =
+			#include "shaders/displayFrag.h"
+
+		shader renderDownscaleShader (renderVP, renderDownscaleFP);
+		GLuint renderDownscaleSP = renderDownscaleShader.loadProgram ();
+		if (!renderDownscaleSP)
+			return false;
+
+		glUseProgram (renderDownscaleSP);
+		glUniform1i (glGetUniformLocation (renderDownscaleSP, "video"), 0);
+
+		pass.push_back (new renderingPass (
+			new frameGPUi (info->width / 2, info->height / 2, cfg->internalType, true),
+			renderDownscaleSP, 1, 0));
+		LOGD ("Debanding: downscale");
+
+		const GLfloat blurWeight[] ={
+		   0.1499282118,
+		   0.1703959693,
+		   0.1161194010,
+		   0.0635564179
+		};
+		const GLfloat blurOffsetX[] ={
+		  (float)  0.6604655169 / info->width * 2,
+		  (float)  2.4653334866 / info->width * 2,
+		  (float)  4.4378234991 / info->width * 2,
+		  (float)  6.4106906239 / info->width * 2
+		};
+		const GLfloat blurOffsetY[] ={
+		  (float)  0.6604655169 / info->height * 2,
+		  (float)  2.4653334866 / info->height * 2,
+		  (float)  4.4378234991 / info->height * 2,
+		  (float)  6.4106906239 / info->height * 2
+		};
 		const int blurTaps = sizeof (blurWeight) / sizeof (*blurWeight);
 
 		const char* renderBlurXFP =
@@ -258,12 +279,12 @@ bool renderer::renderInit () {
 			return false;
 
 		glUseProgram (renderBlurXSP);
-		glUniform1i  (glGetUniformLocation (renderBlurXSP, "video"), 0);
+		glUniform1i  (glGetUniformLocation (renderBlurXSP, "video"), 1);
 		glUniform1fv (glGetUniformLocation (renderBlurXSP, "weight"), blurTaps, blurWeight);
 		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType, false),
+			new frameGPUi (info->width / 2, info->height / 2, cfg->internalType, true),
 			renderBlurXSP, 1, 0));
 		LOGD ("Debanding: blur width");
 
@@ -281,7 +302,7 @@ bool renderer::renderInit () {
 		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType, false),
+			new frameGPUi (info->width / 2, info->height / 2, cfg->internalType, true),
 			renderBlurYSP, 1, 0));
 		LOGD ("Debanding: blur height");
 

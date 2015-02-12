@@ -29,8 +29,6 @@ out vec4 outColor;
 void main () {
 	vec3 tex = texture (video, coord).rgb;
 	vec3 avg = texture (blur, coord).rgb;
-	bool diff = all (lessThan (abs (tex - avg), threshold));
-	outColor = vec4 (diff ? avg : tex, 1.0);
-	// vec3 diff = max (abs (tex - avg) * threshold, vec3 (1.0));
-	// outColor = vec4 (mix (tex, avg, diff), 1.0);
+	vec3 diff = min (abs (tex - avg) / threshold, vec3 (1.0));
+	outColor = vec4 (mix (avg, tex, diff), 1.0);
 })";

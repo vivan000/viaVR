@@ -27,6 +27,7 @@
 
 videoRenderer::videoRenderer () {
 	cfg = new config ();
+	LOGD ("%s v%i.%i %s %s", getName (), getMajorVersion (), getMinorVersion (), __DATE__, __TIME__);
 }
 
 videoRenderer::~videoRenderer () {

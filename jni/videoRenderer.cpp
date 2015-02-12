@@ -255,9 +255,9 @@ bool videoRenderer::init () {
 	loadVbos ();
 
 	// create queues
-	decodeQueue = new queue<frameCPU> (8, info, cfg);
-	uploadQueue = new queue<frameGPUu> (8, info, cfg);
-	renderQueue = new queue<frameGPUo> (8, info, cfg);
+	decodeQueue = new queue<frameCPU> (16, info, cfg);
+	uploadQueue = new queue<frameGPUu> (16, info, cfg);
+	renderQueue = new queue<frameGPUo> (16, info, cfg);
 
 	// check GL errors
 	if (!checkGlStatus ())

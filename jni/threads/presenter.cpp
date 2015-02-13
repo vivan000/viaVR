@@ -81,8 +81,11 @@ void presenter::pause () {
 
 void presenter::present () {
 	eglMakeCurrent (display, surface, surface, context);
-
+#ifdef PERFOMANCE
+	working = false;
+#else
 	working = true;
+#endif
 	while (working) {
 		glClear (GL_COLOR_BUFFER_BIT);
 

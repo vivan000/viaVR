@@ -19,6 +19,7 @@
 
 #pragma once
 #include "frames/frames.h"
+// #define PERFOMANCE
 
 struct config {
 	int targetX, targetY;
@@ -40,5 +41,4 @@ struct config {
 	int displayRefreshRate = 60;
 
 	bool logEachFrame = false;
-	bool measurePerformance = false;
 };

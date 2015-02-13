@@ -19,6 +19,12 @@
 
 #include "threads/threads.h"
 
+int64_t nanotime () {
+	struct timespec now;
+	clock_gettime (CLOCK_MONOTONIC, &now);
+	return (int64_t) now.tv_sec * 1000000000LL + now.tv_nsec;
+}
+
 renderer::renderer (videoInfo* info, config* cfg, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface renderPbuffer, EGLContext renderContext, GLuint* vboIds) {
 	renderer::info = info;
@@ -77,18 +83,19 @@ void renderer::stop () {
 void renderer::render () {
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
 
-	performance perf (8, 100);
-
+#ifdef PERFOMANCE
+	int64_t rstart = nanotime ();
+	int rcount = 0;
+	uploadQueue->pop (from);
+#endif
 	joined = false;
 	working = true;
 	while (working) {
 		if (!uploadQueue->isEmpty () && !renderQueue->isFull ()) {
+#ifndef PERFOMANCE
 			uploadQueue->pop (from);
-
+#endif
 			to->timecode = from->timecode;
-
-			if (cfg->measurePerformance)
-				perf.begin ();
 
 			for (int i = 0; i < info->planes; i++) {
 				glActiveTexture (GL_TEXTURE0 + i);
@@ -101,18 +108,17 @@ void renderer::render () {
 				else
 					(*passIt)->execute (to->plane, cfg->targetWidth, cfg->targetHeight);
 
-			if (cfg->measurePerformance)
-				perf.end ();
-
 			glFlush ();
-
-			if (cfg->measurePerformance) {
-				float avg = perf.measure ();
-				if (avg)
-					LOGD ("Rendering: %6.3f ms", avg);
+#ifdef PERFOMANCE
+			rcount++;
+			if (rcount == 100) {
+				LOGD ("Rendering: %6.3f ms", (nanotime () - rstart) / rcount / 1000000.0);
+				rcount = 0;
+				rstart = nanotime ();
 			}
-
+#else
 			renderQueue->push (to);
+#endif
 		} else {
 			usleep (10000);
 		}

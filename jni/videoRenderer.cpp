@@ -272,9 +272,10 @@ bool videoRenderer::init () {
 	renderO = new renderer (info, cfg, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
 
 	// wait till there's at least 1 frame to show
+#ifndef PERFOMANCE
 	while (renderQueue->isEmpty ())
 		usleep (10000);
-
+#endif
 	initialized = true;
 	LOGD ("Initialization: OK");
 	return true;
@@ -326,9 +327,6 @@ bool videoRenderer::checkExtensions () {
 		if (!extFloatLinear && cfg->hwScaleLinear)
 			return false;
 	}
-
-	if (!extTimerQuery)
-		cfg->measurePerformance = false;
 
 /*
 	if (extBinningControl)

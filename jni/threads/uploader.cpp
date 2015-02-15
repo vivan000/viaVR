@@ -85,7 +85,7 @@ void uploader::upload () {
 					info->chromaFormat, info->chromaType, (GLvoid*) (from->plane + info->offset2));
 			}
 
-			glFlush ();
+			glFinish ();
 
 			uploadQueue->push (to);
 		} else {

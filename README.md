@@ -9,13 +9,12 @@ Advanced video renderer for Android. [Overview](https://github.com/vivan000/viaV
 - proper color conversion (BT.709 support, correct chroma location).
 - h/w bilinear scaling and chroma upsampling.
 - high quality dithering (dynamic ordered).
-- native code (C++).
-- full GPU acceleration (OpenGL ES 3.0).
+- native code (C++), full GPU acceleration (OpenGL ES 3.0).
+- debanding.
 
 ### Planned features:
 - high quality chroma upsampling.
 - high quality scaling.
 - subtitle consumer.
-- support for custom shaders (debanding, etc.)
 - OSD (stats).
 - settings.

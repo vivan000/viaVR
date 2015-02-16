@@ -183,7 +183,7 @@ bool renderer::renderInit () {
 				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, cfg->internalType, cfg->debanding),
+				new frameGPUi (info->width, info->height, cfg->internalType, false),
 				renderToInternalSP, 0, 0));
 			LOGD ("Planar to internal");
 
@@ -257,78 +257,6 @@ bool renderer::renderInit () {
 
 	// debanding
 	if (cfg->debanding) {
-		const char* renderDownscaleFP =
-			#include "shaders/displayFrag.h"
-
-		shader renderDownscaleShader (renderVP, renderDownscaleFP);
-		GLuint renderDownscaleSP = renderDownscaleShader.loadProgram ();
-		if (!renderDownscaleSP)
-			return false;
-
-		glUseProgram (renderDownscaleSP);
-		glUniform1i (glGetUniformLocation (renderDownscaleSP, "video"), 0);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width / 2, info->height / 2, cfg->internalType, true),
-			renderDownscaleSP, 1, 0));
-		LOGD ("Debanding: downscale");
-
-		const GLfloat blurWeight[] ={
-		   0.1499282118,
-		   0.1703959693,
-		   0.1161194010,
-		   0.0635564179
-		};
-		const GLfloat blurOffsetX[] ={
-		  (float)  0.6604655169 / info->width * 2,
-		  (float)  2.4653334866 / info->width * 2,
-		  (float)  4.4378234991 / info->width * 2,
-		  (float)  6.4106906239 / info->width * 2
-		};
-		const GLfloat blurOffsetY[] ={
-		  (float)  0.6604655169 / info->height * 2,
-		  (float)  2.4653334866 / info->height * 2,
-		  (float)  4.4378234991 / info->height * 2,
-		  (float)  6.4106906239 / info->height * 2
-		};
-		const int blurTaps = sizeof (blurWeight) / sizeof (*blurWeight);
-
-		const char* renderBlurXFP =
-			#include "shaders/blurX.h"
-
-		shader renderBlurXShader (renderVP, renderBlurXFP, precision, blurTaps);
-		GLuint renderBlurXSP = renderBlurXShader.loadProgram ();
-		if (!renderBlurXSP)
-			return false;
-
-		glUseProgram (renderBlurXSP);
-		glUniform1i  (glGetUniformLocation (renderBlurXSP, "video"), 1);
-		glUniform1fv (glGetUniformLocation (renderBlurXSP, "weight"), blurTaps, blurWeight);
-		glUniform1fv (glGetUniformLocation (renderBlurXSP, "offset"), blurTaps, blurOffsetX);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width / 2, info->height / 2, cfg->internalType, true),
-			renderBlurXSP, 1, 0));
-		LOGD ("Debanding: blur width");
-
-		const char* renderBlurYFP =
-			#include "shaders/blurY.h"
-
-		shader renderBlurYShader (renderVP, renderBlurYFP, precision, blurTaps);
-		GLuint renderBlurYSP = renderBlurYShader.loadProgram ();
-		if (!renderBlurYSP)
-			return false;
-
-		glUseProgram (renderBlurYSP);
-		glUniform1i  (glGetUniformLocation (renderBlurYSP, "video"), 1);
-		glUniform1fv (glGetUniformLocation (renderBlurYSP, "weight"), blurTaps, blurWeight);
-		glUniform1fv (glGetUniformLocation (renderBlurYSP, "offset"), blurTaps, blurOffsetY);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width / 2, info->height / 2, cfg->internalType, true),
-			renderBlurYSP, 1, 0));
-		LOGD ("Debanding: blur height");
-
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
 
@@ -339,16 +267,22 @@ bool renderer::renderInit () {
 
 		glUseProgram (renderDebandSP);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
-		glUniform1i (glGetUniformLocation (renderDebandSP, "blur"), 1);
-		glUniform3f (glGetUniformLocation (renderDebandSP, "threshold"),
-			(float) (cfg->debandThreshold / 255.0),
-			(float) (cfg->debandThreshold / 255.0),
-			(float) (cfg->debandThreshold / 255.0));
+		glUniform1i (glGetUniformLocation (renderDebandSP, "dither"), 3);
+		glUniform3f (glGetUniformLocation (renderDebandSP, "thresh"),
+			(float) (-3.0 * 255.0 / cfg->debandAvgDif),
+			(float) (-3.0 * 255.0 / cfg->debandMaxDif),
+			(float) (-3.0 * 255.0 / cfg->debandMidDif));
+		glUniform2f (glGetUniformLocation (renderDebandSP, "pitch"),
+			(float) (1.0 / info->width),
+			(float) (1.0 / info->height));
+		glUniform2f (glGetUniformLocation (renderDebandSP, "resize"),
+			(float) (cfg->targetWidth / 32.0),
+			(float) (cfg->targetHeight / 32.0));
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType, false),
 			renderDebandSP, 0, 0));
-		LOGD ("Debanding: debanding");
+		LOGD ("Debanding");
 	}
 
 	// convert YCbCr -> RGB
@@ -390,8 +324,8 @@ bool renderer::renderInit () {
 		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
 		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));
 	glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
-		(float) ((double) cfg->targetWidth / 32.0),
-		(float) ((double) cfg->targetHeight / 32.0));
+		(float) (cfg->targetWidth / 32.0),
+		(float) (cfg->targetHeight / 32.0));
 
 	#include "threads/helpers/ditherMatrix.h"
 

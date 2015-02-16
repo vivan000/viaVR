@@ -35,21 +35,17 @@ videoRenderer::~videoRenderer () {
 	if (initialized) {
 		delete presentO;
 		delete decodeO;
-		delete uploadO;
 		delete renderO;
 
 		eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
 		delete decodeQueue;
-		delete uploadQueue;
 		delete renderQueue;
 
 		glDeleteBuffers (3, vboIds);
 
 		eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-		eglDestroySurface (display, uploadPbuffer);
-		eglDestroyContext (display, uploadContext);
 		eglDestroySurface (display, renderPbuffer);
 		eglDestroyContext (display, renderContext);
 		eglDestroySurface (display, mainSurface);
@@ -194,19 +190,6 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 		return false;
 	}
 
-	uploadPbuffer = eglCreatePbufferSurface (display, choosedConfig, attribListPbufferSurface);
-	if (!uploadPbuffer) {
-		LOGE ("Upload pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
-		return false;
-	}
-
-	uploadContext = eglCreateContext (display, choosedConfig, mainContext,
-		priority ? attribListBackgroundContext : attribListNoPriorityContext);
-	if (!uploadContext) {
-		LOGE ("Upload pbuffer CreateContext error: %s", getEglErrorStr ());
-		return false;
-	}
-
 	renderPbuffer = eglCreatePbufferSurface (display, choosedConfig, attribListPbufferSurface);
 	if (!renderPbuffer) {
 		LOGE ("Render pbuffer CreatePbufferSurface error: %s", getEglErrorStr ());
@@ -256,7 +239,6 @@ bool videoRenderer::init () {
 
 	// create queues
 	decodeQueue = new queue<frameCPU> (16, info, cfg);
-	uploadQueue = new queue<frameGPUu> (16, info, cfg);
 	renderQueue = new queue<frameGPUo> (16, info, cfg);
 
 	// check GL errors
@@ -268,8 +250,7 @@ bool videoRenderer::init () {
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 	presentO = new presenter (info, cfg, renderQueue, display, mainSurface, mainContext);
 	decodeO = new decoder (info, cfg, decodeQueue, video);
-	uploadO = new uploader (info, cfg, decodeQueue, uploadQueue, display, uploadPbuffer, uploadContext);
-	renderO = new renderer (info, cfg, uploadQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
+	renderO = new renderer (info, cfg, decodeQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
 
 	// wait till there's at least 1 frame to show
 #ifndef PERFOMANCE
@@ -447,12 +428,10 @@ void videoRenderer::seek (int timecode) {
 
 	// stop everything
 	decodeO->stop ();
-	uploadO->stop ();
 	renderO->stop ();
 
 	// flush queues
 	decodeQueue->flush();
-	uploadQueue->flush();
 	renderQueue->flush();
 
 	// seek video
@@ -460,7 +439,6 @@ void videoRenderer::seek (int timecode) {
 
 	// restart threads
 	decodeO->start ();
-	uploadO->start ();
 	renderO->start ();
 }
 

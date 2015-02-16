@@ -25,11 +25,11 @@ int64_t nanotime () {
 	return (int64_t) now.tv_sec * 1000000000LL + now.tv_nsec;
 }
 
-renderer::renderer (videoInfo* info, config* cfg, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
+renderer::renderer (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface renderPbuffer, EGLContext renderContext, GLuint* vboIds) {
 	renderer::info = info;
 	renderer::cfg = cfg;
-	renderer::uploadQueue = uploadQueue;
+	renderer::decodeQueue = decodeQueue;
 	renderer::renderQueue = renderQueue;
 
 	renderer::display = display;
@@ -41,14 +41,15 @@ renderer::renderer (videoInfo* info, config* cfg, queue<frameGPUu>* uploadQueue,
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
 	glDisable (GL_DITHER);
 
-	from = new frameGPUu (info, cfg);
+	from = new frameCPU (info, cfg);
+	up = new frameGPUu (info, cfg);
 	to = new frameGPUo (info, cfg);
-
-	if (renderInit ())
-		LOGD ("Rendering chain: OK");
 
 	glGenFramebuffers (1, &framebuffer);
 	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
+
+	if (renderInit ())
+		LOGD ("Rendering chain: OK");
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 	start ();
@@ -64,6 +65,7 @@ renderer::~renderer () {
 		delete *passIt;
 
 	delete from;
+	delete up;
 	delete to;
 
 	glDeleteFramebuffers (1, &framebuffer);
@@ -86,20 +88,34 @@ void renderer::render () {
 #ifdef PERFOMANCE
 	int64_t rstart = nanotime ();
 	int rcount = 0;
-	uploadQueue->pop (from);
+	decodeQueue->pop (from);
 #endif
 	joined = false;
 	working = true;
 	while (working) {
-		if (!uploadQueue->isEmpty () && !renderQueue->isFull ()) {
+		if (!decodeQueue->isEmpty () && !renderQueue->isFull ()) {
 #ifndef PERFOMANCE
-			uploadQueue->pop (from);
+			decodeQueue->pop (from);
 #endif
 			to->timecode = from->timecode;
 
-			for (int i = 0; i < info->planes; i++) {
-				glActiveTexture (GL_TEXTURE0 + i);
-				glBindTexture (GL_TEXTURE_2D, from->plane[i]);
+			glActiveTexture (GL_TEXTURE0);
+			glBindTexture (GL_TEXTURE_2D, up->plane[0]);
+			glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->width, info->height,
+				info->lumaFormat, info->lumaType, (GLvoid*) from->plane);
+
+			if (info->planes > 1) {
+				glActiveTexture (GL_TEXTURE1);
+				glBindTexture (GL_TEXTURE_2D, up->plane[1]);
+				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
+					info->chromaFormat, info->chromaType, (GLvoid*) (from->plane + info->offset1));
+			}
+
+			if (info->planes > 2) {
+				glActiveTexture (GL_TEXTURE2);
+				glBindTexture (GL_TEXTURE_2D, up->plane[2]);
+				glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, info->chromaWidth, info->chromaHeight,
+					info->chromaFormat, info->chromaType, (GLvoid*) (from->plane + info->offset2));
 			}
 
 			for (rPass::iterator passIt = pass.begin (); passIt != pass.end (); ++passIt)
@@ -109,6 +125,7 @@ void renderer::render () {
 					(*passIt)->execute (to->plane, cfg->targetWidth, cfg->targetHeight);
 
 			glFlush ();
+
 #ifdef PERFOMANCE
 			rcount++;
 			if (rcount == 100) {

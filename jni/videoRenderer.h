@@ -54,23 +54,19 @@ private:
 	GLuint vboIds[3];
 
 	queue<frameCPU>* decodeQueue;
-	queue<frameGPUu>* uploadQueue;
 	queue<frameGPUo>* renderQueue;
 
 	EGLDisplay display;
 
 	EGLSurface mainSurface;
-	EGLSurface uploadPbuffer;
 	EGLSurface renderPbuffer;
 
 	EGLContext mainContext;
-	EGLContext uploadContext;
 	EGLContext renderContext;
 
 	EGLint surfaceWidth, surfaceHeight;
 
 	decoder* decodeO;
-	uploader* uploadO;
 	renderer* renderO;
 	presenter* presentO;
 };

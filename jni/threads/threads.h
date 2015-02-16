@@ -80,7 +80,7 @@ private:
 
 class renderer {
 public:
-	renderer (videoInfo* info, config* cfg, queue<frameGPUu>* uploadQueue, queue<frameGPUo>* renderQueue,
+	renderer (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, queue<frameGPUo>* renderQueue,
 		EGLDisplay display, EGLSurface renderPbuffer, EGLContext renderContext, GLuint* vboIds);
 	~renderer ();
 	void stop ();
@@ -92,7 +92,7 @@ private:
 
 	videoInfo* info;
 	config* cfg;
-	queue<frameGPUu>* uploadQueue;
+	queue<frameCPU>* decodeQueue;
 	queue<frameGPUo>* renderQueue;
 
 	EGLDisplay display;
@@ -103,8 +103,10 @@ private:
 
 	rPass pass;
 
-	frameGPUu* from;
+	frameCPU* from;
+	frameGPUu* up;
 	frameGPUo* to;
+
 	bool working, joined;
 	std::thread thread;
 };

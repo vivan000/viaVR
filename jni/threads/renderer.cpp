@@ -223,9 +223,8 @@ bool renderer::renderInit () {
 
 		glUseProgram (render420to422SP);
 		glUniform1i (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
-		glUniform4f (glGetUniformLocation (render420to422SP, "pitch"),
-			(float) ( 2.0 / info->height), (float) (1.0 / info->height),
-			(float) (-0.5 / info->height), (float) (0.5 * info->height));
+		glUniform2f (glGetUniformLocation (render420to422SP, "height"),
+			(float) info->height / 2.0, (float) 2.0 / info->height);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->chromaWidth, info->height, cfg->internalType, false),
@@ -247,7 +246,8 @@ bool renderer::renderInit () {
 		glUniform1i (glGetUniformLocation (render422to444SP, "YCbCr"), 0);
 		if (info->halfHeight)
 			glUniform1i (glGetUniformLocation (render422to444SP, "CbCr"), 1);
-		glUniform1f (glGetUniformLocation (render422to444SP, "pitch"), (float) (1.0 / info->width));
+		glUniform2f (glGetUniformLocation (render422to444SP, "width"),
+			(float) info->width / 2.0, (float) 2.0 / info->width);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType, false),

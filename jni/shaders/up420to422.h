@@ -21,17 +21,20 @@ R"(#version 300 es
 precision %s float;
 
 uniform sampler2D YCbCr;
-uniform vec4 pitch;
+uniform vec2 height;
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	float c = round (coord.y * pitch.a) * pitch.r + pitch.b;
-	outColor = vec4 (
-		0.0,
-		mix (
-			texture (YCbCr, vec2 (coord.x, c + pitch.g)).gb,
-			texture (YCbCr, vec2 (coord.x, c)).gb,
-			fract (coord.y * pitch.a)),
-		0.0);
+	vec4 weight = fract (coord.y * height.x) > 0.5 ?
+		vec4 (-0.0703125, 0.8671875, 0.2265625, -0.0234375) :
+		vec4 (-0.0234375, 0.2265625, 0.8671875, -0.0703125);
+
+	float luma = texture (YCbCr, coord).r;
+	vec2 chroma = 
+		texture (YCbCr, vec2 (coord.x, coord.y - 1.5 * height.y)).gb * weight.r +
+		texture (YCbCr, vec2 (coord.x, coord.y - 0.5 * height.y)).gb * weight.g +
+		texture (YCbCr, vec2 (coord.x, coord.y + 0.5 * height.y)).gb * weight.b +
+		texture (YCbCr, vec2 (coord.x, coord.y + 1.5 * height.y)).gb * weight.a;
+	outColor = vec4 (luma, chroma, 1.0);
 })";

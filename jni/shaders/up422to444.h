@@ -27,15 +27,20 @@ uniform sampler2D CbCr;
 #else
 #define CbCr YCbCr
 #endif
-uniform float pitch;
+uniform vec2 width;
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	float y = texture (YCbCr, coord).r;
-	vec2 uv = mix (
-		texture (CbCr, coord).gb,
-		texture (CbCr, vec2 (coord.x + pitch, coord.y)).gb,
-		0.5);
-	outColor = vec4 (y,	uv, 1.0);
+	vec4 weight = fract (coord.x * width.x) > 0.5 ?
+		vec4 (-0.0625, 0.5625, 0.5625, -0.0625) :
+		vec4 ( 0.0000, 1.0000, 0.0000,  0.0000);
+	
+	float luma = texture (YCbCr, coord).r;
+	vec2 chroma = 
+		texture (CbCr, vec2 (coord.x - width.y, coord.y)).gb * weight.r +
+		texture (CbCr, coord).gb * weight.g +
+		texture (CbCr, vec2 (coord.x + width.y, coord.y)).gb * weight.b +
+		texture (CbCr, vec2 (coord.x + 2.0 * width.y, coord.y)).gb * weight.a;
+	outColor = vec4 (luma, chroma, 1.0);
 })";

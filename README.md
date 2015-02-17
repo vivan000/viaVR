@@ -8,12 +8,12 @@ Advanced video renderer for Android. [Overview](https://github.com/vivan000/viaV
 - high bit-depth processing.
 - proper color conversion (BT.709 support, correct chroma location).
 - h/w bilinear scaling and chroma upsampling.
+- high quality chroma upsampling (Catmull-Rom).
 - high quality dithering (dynamic ordered).
 - native code (C++), full GPU acceleration (OpenGL ES 3.0).
 - debanding.
 
 ### Planned features:
-- high quality chroma upsampling.
 - high quality scaling.
 - subtitle consumer.
 - OSD (stats).

@@ -1,9 +1,9 @@
 /*
  * Copyright (c) 2015 Ivan Valiulin
  *
- * Based on port by Mathias Rauen (madhsi)
+ * Based on port/modification by Mathias Rauen (madhsi)
  * http://forum.doom9.org/showpost.php?p=1652132&postcount=296
- * of flash3kyuu_deband by Joe Hu (SAPikachu)
+ * of flash3kyuu_deband algorithm by Joe Hu (SAPikachu)
  * https://github.com/SAPikachu/flash3kyuu_deband
  *
  * This file is part of viaVR.
@@ -43,7 +43,7 @@ void main () {
 	vec3 pix3 = texture (video, vec2 (coord.x - x.x, coord.y - y.y)).rgb;
 	vec3 pix4 = texture (video, vec2 (coord.x - x.y, coord.y + y.x)).rgb;
 
-	vec3 avg = (pix1 + pix2 + pix3 + pix4) * 0.25;
+	vec3 avg = (pix1 + pix3) * 0.25 + (pix2 + pix4) * 0.25;
 	vec3 avgDif = abs (avg - pix0);
 	vec3 maxDif = max (
 		max (abs (pix1 - pix0), abs (pix2 - pix0)),

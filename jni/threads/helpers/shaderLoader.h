@@ -20,15 +20,13 @@
 #pragma once
 #include <GLES3/gl3.h>
 
-class shader {
+class shaderLoader {
 public:
-	shader (const char* vertexShaderSource, const char* fragmentShaderSource, ...);
-	~shader ();
+	shaderLoader ();
+	~shaderLoader ();
 
-	GLuint loadProgram ();
+	GLuint loadShaders (const char* vertexShaderSource, const char* fragmentShaderSource, ...);
+
 private:
 	GLuint loadShader (GLenum type, const char* shaderSource);
-
-	GLuint vertexShader, fragmentShader;
-	GLuint programObject;
 };

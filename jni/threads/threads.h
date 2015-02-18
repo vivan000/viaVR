@@ -26,9 +26,8 @@
 #include "interface/IVideodecoder.h"
 #include "frames/frames.h"
 #include "queue.h"
-#include "threads/helpers/shader.h"
+#include "threads/helpers/shaderLoader.h"
 #include "threads/helpers/renderingPass.h"
-#include "threads/helpers/performance.h"
 #include "log.h"
 
 typedef std::vector<renderingPass*> rPass;

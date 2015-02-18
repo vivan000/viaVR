@@ -20,9 +20,15 @@
 #include <cstdio>
 #include <string.h>
 #include "log.h"
-#include "threads/helpers/shader.h"
+#include "threads/helpers/shaderLoader.h"
 
-shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource, ...) {
+shaderLoader::shaderLoader () {
+}
+
+shaderLoader::~shaderLoader () {
+}
+
+GLuint shaderLoader::loadShaders (const char* vertexShaderSource, const char* fragmentShaderSource, ...) {
 	int size = strlen (fragmentShaderSource) + 32;
 	char* fragmentShaderSourceProcessed = new char[size];
 
@@ -31,50 +37,45 @@ shader::shader (const char* vertexShaderSource, const char* fragmentShaderSource
 	vsprintf (fragmentShaderSourceProcessed, fragmentShaderSource, argptr);
 	va_end (argptr);
 
-	vertexShader = loadShader (GL_VERTEX_SHADER, vertexShaderSource);
-	fragmentShader = loadShader (GL_FRAGMENT_SHADER, fragmentShaderSourceProcessed);
+	GLuint vertexShader = loadShader (GL_VERTEX_SHADER, vertexShaderSource);
+	GLuint fragmentShader = loadShader (GL_FRAGMENT_SHADER, fragmentShaderSourceProcessed);
 	delete[] fragmentShaderSourceProcessed;
-}
 
-shader::~shader () {
-}
+	if (!vertexShader || !fragmentShader)
+		return 0;
 
-GLuint shader::loadProgram () {
-	programObject = glCreateProgram ();
-
-	if (programObject == 0) {
+	GLuint programObject = glCreateProgram ();
+	if (!programObject) {
 		LOGE ("Error creating program");
+		return 0;
 	}
 
-	if (programObject && vertexShader && fragmentShader) {
-		glAttachShader (programObject, vertexShader);
-		glAttachShader (programObject, fragmentShader);
-		glLinkProgram (programObject);
+	glAttachShader (programObject, vertexShader);
+	glAttachShader (programObject, fragmentShader);
+	glLinkProgram (programObject);
 
-		GLint linked;
-		glGetProgramiv (programObject, GL_LINK_STATUS, &linked);
-		if (!linked) {
-			GLint infoLen = 0;
-			glGetProgramiv (programObject, GL_INFO_LOG_LENGTH, &infoLen);
-			if (infoLen > 1) {
-				char* infoLog = new char[infoLen];
-				glGetProgramInfoLog (programObject, infoLen, NULL, infoLog);
-				LOGE ("Error linking program:\n%s", infoLog);
-				delete[] infoLog;
-			}
-			return 0;
+	GLint linked;
+	glGetProgramiv (programObject, GL_LINK_STATUS, &linked);
+	if (!linked) {
+		GLint infoLen = 0;
+		glGetProgramiv (programObject, GL_INFO_LOG_LENGTH, &infoLen);
+		if (infoLen > 1) {
+			char* infoLog = new char[infoLen];
+			glGetProgramInfoLog (programObject, infoLen, NULL, infoLog);
+			LOGE ("Error linking program:\n%s", infoLog);
+			delete[] infoLog;
 		}
-
-		glDeleteShader (vertexShader);
-		glDeleteShader (fragmentShader);
-		return programObject;
+		return 0;
 	}
-	return 0;
+
+	glDeleteShader (vertexShader);
+	glDeleteShader (fragmentShader);
+	return programObject;
 }
 
-GLuint shader::loadShader (GLenum type, const char* shaderSource) {
+GLuint shaderLoader::loadShader (GLenum type, const char* shaderSource) {
 	GLuint shader = glCreateShader (type);
-	if (shader == 0) {
+	if (!shader) {
 		LOGE ("Error creating shader");
 		return 0;
 	}

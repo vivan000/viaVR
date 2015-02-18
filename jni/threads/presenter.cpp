@@ -45,8 +45,8 @@ presenter::presenter (videoInfo* info, config* cfg, queue<frameGPUo>* renderQueu
 	const char* displayFP =
 		#include "shaders/displayFrag.h"
 
-	shader displayShader (displayVP, displayFP);
-	displaySP = displayShader.loadProgram ();
+	shaderLoader shader;
+	displaySP = shader.loadShaders (displayVP, displayFP);
 	glUseProgram (displaySP);
 	glUniform1i (glGetUniformLocation (displaySP, "video"), 0);
 	from = new frameGPUo (info, cfg);

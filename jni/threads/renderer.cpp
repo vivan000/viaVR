@@ -160,7 +160,7 @@ bool renderer::renderInit () {
 
 	const char* renderVP =
 		#include "shaders/displayVert.h"
-
+	shaderLoader shader;
 	LOGD ("Rendering chain:");
 
 	// convert to internal format
@@ -169,9 +169,8 @@ bool renderer::renderInit () {
 			const char* renderToInternalFP =
 				#include "shaders/planarToInternal.h"
 
-			shader renderToInternalShader (renderVP, renderToInternalFP,
-				precision, info->halfWidth && cfg->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
-			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
+			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderToInternalFP, precision,
+				info->halfWidth && cfg->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
 			if (!renderToInternalSP)
 				return false;
 
@@ -194,8 +193,7 @@ bool renderer::renderInit () {
 			const char* renderRgbToInteralFP =
 				#include "shaders/displayFrag.h"
 
-			shader renderToInternalShader (renderVP, renderRgbToInteralFP);
-			GLuint renderToInternalSP = renderToInternalShader.loadProgram ();
+			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderRgbToInteralFP);
 			if (!renderToInternalSP)
 				return false;
 
@@ -216,8 +214,7 @@ bool renderer::renderInit () {
 		const char* render420to422FP =
 			#include "shaders/up420to422.h"
 
-		shader render420to422Shader (renderVP, render420to422FP, precision);
-		GLuint render420to422SP = render420to422Shader.loadProgram ();
+		GLuint render420to422SP = shader.loadShaders (renderVP, render420to422FP, precision);
 		if (!render420to422SP)
 			return false;
 
@@ -237,8 +234,8 @@ bool renderer::renderInit () {
 		const char* render422to444FP =
 			#include "shaders/up422to444.h"
 
-		shader render422to444Shader (renderVP, render422to444FP, precision, info->halfHeight ? "#define SEPARATE" : "");
-		GLuint render422to444SP = render422to444Shader.loadProgram ();
+		GLuint render422to444SP = shader.loadShaders (renderVP, render422to444FP, precision,
+			info->halfHeight ? "#define SEPARATE" : "");
 		if (!render422to444SP)
 			return false;
 
@@ -260,8 +257,7 @@ bool renderer::renderInit () {
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
 
-		shader renderDebandShader (renderVP, renderDebandFP, precision);
-		GLuint renderDebandSP = renderDebandShader.loadProgram ();
+		GLuint renderDebandSP = shader.loadShaders (renderVP, renderDebandFP, precision);
 		if (!renderDebandSP)
 			return false;
 
@@ -290,8 +286,7 @@ bool renderer::renderInit () {
 		const char* renderYuvToRgbFP =
 			#include "shaders/yuvToRgb.h"
 
-		shader renderYuvToRgbShader (renderVP, renderYuvToRgbFP, precision);
-		GLuint renderYuvToRgbSP = renderYuvToRgbShader.loadProgram ();
+		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision);
 		if (!renderYuvToRgbSP)
 			return false;
 
@@ -311,8 +306,7 @@ bool renderer::renderInit () {
 	const char* renderDitherFP =
 		#include "shaders/dither.h"
 
-	shader renderDitherShader (renderVP, renderDitherFP, precision);
-	GLuint renderDitherSP = renderDitherShader.loadProgram ();
+	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision);
 	if (!renderDitherSP)
 		return false;
 

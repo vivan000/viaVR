@@ -18,10 +18,14 @@
  */
 
 #pragma once
-#include "frames/frames.h"
+#include "videoInfo.h"
 // #define PERFOMANCE
 
-struct config {
+class config {
+public:
+	config ();
+	~config ();
+
 	int targetX, targetY;
 	int targetWidth, targetHeight;
 

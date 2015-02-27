@@ -18,6 +18,7 @@
  */
 
 #include "threads/threads.h"
+#include "threads/helpers/scalers.h"
 
 int64_t nanotime () {
 	struct timespec now;
@@ -300,6 +301,62 @@ bool renderer::renderInit () {
 				((info->width != cfg->targetWidth) || (info->height != cfg->targetHeight)) && cfg->hwScaleLinear),
 			renderYuvToRgbSP, 0, 0));
 		LOGD ("YCbCr -> RGB conversion");
+	}
+
+	// upscale height
+	if (cfg->targetHeight > info->height && !cfg->hwScale) {
+		const char* renderUpHeightFP =
+			#include "shaders/upscale.h"
+
+		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision, "");
+		if (!renderUpHeightSP)
+			return false;
+
+		glUseProgram (renderUpHeightSP);
+		glUniform1i (glGetUniformLocation (renderUpHeightSP, "video"), 0);
+		glUniform1i (glGetUniformLocation (renderUpHeightSP, "weights"), 4);
+		glUniform1f (glGetUniformLocation (renderUpHeightSP, "pitch"), (float) (1.0 / info->height));
+
+		scalers s (kernel::Lanczos3, info->height, cfg->targetHeight);
+
+		frameGPUi* weights = new frameGPUi (cfg->targetHeight, 2, iFormat::FLOAT32, false);
+		glActiveTexture (GL_TEXTURE0 + 4);
+		glBindTexture (GL_TEXTURE_2D, weights->plane);
+		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, cfg->targetHeight, 2, GL_RGBA, GL_FLOAT, (GLvoid*) s.getWeights ());
+		glActiveTexture (GL_TEXTURE0);
+
+		pass.push_back (new renderingPass (
+			new frameGPUi (info->width, cfg->targetHeight, cfg->internalType, false),
+			renderUpHeightSP, 0, 0));
+		LOGD ("Upscale height");
+	}
+
+	// upscale width
+	if (cfg->targetWidth > info->width && !cfg->hwScale) {
+		const char* renderUpWidthFP =
+			#include "shaders/upscale.h"
+
+		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision, "#define WIDTH");
+		if (!renderUpWidthSP)
+			return false;
+
+		glUseProgram (renderUpWidthSP);
+		glUniform1i (glGetUniformLocation (renderUpWidthSP, "video"), 0);
+		glUniform1i (glGetUniformLocation (renderUpWidthSP, "weights"), 5);
+		glUniform1f (glGetUniformLocation (renderUpWidthSP, "pitch"), (float) (1.0 / info->width));
+
+		scalers s (kernel::Lanczos3, info->width, cfg->targetWidth);
+
+		frameGPUi* weights = new frameGPUi (cfg->targetWidth, 2, iFormat::FLOAT32, false);
+		glActiveTexture (GL_TEXTURE0 + 5);
+		glBindTexture (GL_TEXTURE_2D, weights->plane);
+		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, cfg->targetWidth, 2, GL_RGBA, GL_FLOAT, (GLvoid*) s.getWeights ());
+		glActiveTexture (GL_TEXTURE0);
+
+		pass.push_back (new renderingPass (
+			new frameGPUi (cfg->targetWidth, cfg->targetHeight, cfg->internalType, false),
+			renderUpWidthSP, 0, 0));
+		LOGD ("Upscale width");
 	}
 
 	// dither

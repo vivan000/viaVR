@@ -21,7 +21,7 @@
 
 frameGPUi::frameGPUi (int w, int h, iFormat type, bool linear) : width (w), height (h) {
 	GLenum internalFormat, format;
-	bool repeat = false;
+	GLenum repeat = GL_CLAMP_TO_EDGE;
 	switch (type) {
 		case iFormat::INT8:
 			internalFormat = GL_RGBA8;
@@ -42,15 +42,15 @@ frameGPUi::frameGPUi (int w, int h, iFormat type, bool linear) : width (w), heig
 		case iFormat::DITHER:
 			internalFormat = GL_RGB10_A2;
 			format = GL_UNSIGNED_INT_2_10_10_10_REV;
-			repeat = true;
+			repeat = GL_REPEAT;
 			break;
 	}
 	glGenTextures (1, &plane);
 	glBindTexture (GL_TEXTURE_2D, plane);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, linear ? GL_LINEAR : GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linear ? GL_LINEAR : GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, repeat);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, repeat);
 	glTexStorage2D (GL_TEXTURE_2D, 1, internalFormat, w, h);
 
 	timecode = 0;

@@ -86,7 +86,7 @@ void renderer::stop () {
 void renderer::render () {
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
 
-#ifdef PERFOMANCE
+#ifdef PERFORMANCE
 	int64_t rstart = nanotime ();
 	int rcount = 0;
 	decodeQueue->pop (from);
@@ -287,7 +287,8 @@ bool renderer::renderInit () {
 		const char* renderYuvToRgbFP =
 			#include "shaders/yuvToRgb.h"
 
-		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision);
+		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision,
+			cfg->antiringing ? "#define SIGMOIDAL" : "");
 		if (!renderYuvToRgbSP)
 			return false;
 
@@ -363,7 +364,8 @@ bool renderer::renderInit () {
 	const char* renderDitherFP =
 		#include "shaders/dither.h"
 
-	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision);
+	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision,
+		cfg->antiringing ? "#define SIGMOIDAL" : "");
 	if (!renderDitherSP)
 		return false;
 

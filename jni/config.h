@@ -19,7 +19,7 @@
 
 #pragma once
 #include "videoInfo.h"
-// #define PERFOMANCE
+// #define PERFORMANCE
 
 class config {
 public:
@@ -30,9 +30,10 @@ public:
 	int targetWidth, targetHeight;
 
 	bool hwChroma = true;
-	bool hwScale = true;
+	bool hwScale = false;
 	bool hwChromaLinear = true;
-	bool hwScaleLinear = true;
+	bool hwScaleLinear = false;
+	bool antiringing = false;
 
 	iFormat internalType = iFormat::INT10;
 	bool highp = true;

@@ -19,6 +19,7 @@
 
 R"(#version 300 es
 precision %s float;
+%s
 
 uniform sampler2D video;
 uniform mat3 conversion;
@@ -27,5 +28,12 @@ in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	outColor = vec4 (texture (video, coord).rgb * conversion + offset, 1.0);
+	vec3 result = texture (video, coord).rgb * conversion + offset;
+
+#ifdef SIGMOIDAL
+	float s = tanh (2.0);
+	result = 0.5 + 0.25 * atanh (-s + 2.0 * s * result);
+#endif
+
+	outColor = vec4 (result, 1.0);
 })";

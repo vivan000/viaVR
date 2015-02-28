@@ -30,10 +30,10 @@ public:
 	int targetWidth, targetHeight;
 
 	bool hwChroma = true;
-	bool hwScale = false;
+	bool hwScale = true;
 	bool hwChromaLinear = true;
-	bool hwScaleLinear = false;
-	bool antiringing = false;
+	bool hwScaleLinear = true;
+	bool sigmoidal = false;
 
 	iFormat internalType = iFormat::INT10;
 	bool highp = true;

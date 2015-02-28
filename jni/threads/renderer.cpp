@@ -288,7 +288,7 @@ bool renderer::renderInit () {
 			#include "shaders/yuvToRgb.h"
 
 		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision,
-			cfg->antiringing ? "#define SIGMOIDAL" : "");
+			cfg->sigmoidal ? "#define SIGMOIDAL" : "");
 		if (!renderYuvToRgbSP)
 			return false;
 
@@ -365,7 +365,7 @@ bool renderer::renderInit () {
 		#include "shaders/dither.h"
 
 	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision,
-		cfg->antiringing ? "#define SIGMOIDAL" : "");
+		cfg->sigmoidal ? "#define SIGMOIDAL" : "");
 	if (!renderDitherSP)
 		return false;
 

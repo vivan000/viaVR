@@ -81,7 +81,7 @@ void presenter::pause () {
 
 void presenter::present () {
 	eglMakeCurrent (display, surface, surface, context);
-#ifdef PERFOMANCE
+#ifdef PERFORMANCE
 	working = false;
 #else
 	working = true;

@@ -20,12 +20,12 @@
 #pragma once
 
 enum class kernel {
-	Lanczos3,
+	Lanczos,
 };
 
 class scalers {
 	public:
-		scalers (kernel k, int src, int dst);
+		scalers (kernel k, int taps, int src, int dst);
 		~scalers ();
 		float* getWeights ();
 

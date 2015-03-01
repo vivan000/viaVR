@@ -19,6 +19,7 @@
 
 R"(#version 300 es
 precision %s float;
+#define TAPS %i
 %s
 
 uniform sampler2D video;
@@ -27,28 +28,36 @@ uniform float pitch;
 in vec2 coord;
 out vec4 outColor;
 
-#ifdef WIDTH
-#define newcoord(c) (vec2 (coord.x + c * pitch, coord.y))
-#else
+#ifdef HEIGHT
 #define newcoord(c) (vec2 (coord.x, coord.y + c * pitch))
+#else
+#define newcoord(c) (vec2 (coord.x + c * pitch, coord.y))
 #endif
 
 void main () {
-#ifdef WIDTH
-	vec4 weightsL = texture (weights, vec2 (coord.x, 0.25));
-	vec4 weightsR = texture (weights, vec2 (coord.x, 0.75));
-#else
+#ifdef HEIGHT
 	vec4 weightsL = texture (weights, vec2 (coord.y, 0.25));
 	vec4 weightsR = texture (weights, vec2 (coord.y, 0.75));
+#else
+	vec4 weightsL = texture (weights, vec2 (coord.x, 0.25));
+	vec4 weightsR = texture (weights, vec2 (coord.x, 0.75));
 #endif
 
 	vec3 result = vec3 (0.0);
-	result += texture (video, newcoord (-2.5)).rgb * weightsL.b;
-	result += texture (video, newcoord (-1.5)).rgb * weightsL.g;
 	result += texture (video, newcoord (-0.5)).rgb * weightsL.r;
 	result += texture (video, newcoord ( 0.5)).rgb * weightsR.r;
+#if TAPS >= 2
+	result += texture (video, newcoord (-1.5)).rgb * weightsL.g;
 	result += texture (video, newcoord ( 1.5)).rgb * weightsR.g;
+#endif
+#if TAPS >= 3
+	result += texture (video, newcoord (-2.5)).rgb * weightsL.b;
 	result += texture (video, newcoord ( 2.5)).rgb * weightsR.b;
+#endif
+#if TAPS >= 4
+	result += texture (video, newcoord (-3.5)).rgb * weightsL.a;
+	result += texture (video, newcoord ( 3.5)).rgb * weightsR.a;
+#endif
 
 	outColor = vec4 (result, 1.0);
 })";

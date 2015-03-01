@@ -19,6 +19,7 @@
 
 #pragma once
 #include "videoInfo.h"
+#include "threads/helpers/scalers.h"
 // #define PERFORMANCE
 
 class config {
@@ -33,7 +34,9 @@ public:
 	bool hwScale = true;
 	bool hwChromaLinear = true;
 	bool hwScaleLinear = true;
-	bool sigmoidal = false;
+
+	kernel scaleKernel = kernel::Lanczos;
+	int scaleTaps = 3;
 
 	iFormat internalType = iFormat::INT10;
 	bool highp = true;

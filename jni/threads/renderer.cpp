@@ -287,8 +287,7 @@ bool renderer::renderInit () {
 		const char* renderYuvToRgbFP =
 			#include "shaders/yuvToRgb.h"
 
-		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision,
-			cfg->sigmoidal ? "#define SIGMOIDAL" : "");
+		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision);
 		if (!renderYuvToRgbSP)
 			return false;
 
@@ -309,7 +308,8 @@ bool renderer::renderInit () {
 		const char* renderUpHeightFP =
 			#include "shaders/upscale.h"
 
-		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision, "");
+		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
+			cfg->scaleTaps, "#define HEIGHT");
 		if (!renderUpHeightSP)
 			return false;
 
@@ -318,7 +318,7 @@ bool renderer::renderInit () {
 		glUniform1i (glGetUniformLocation (renderUpHeightSP, "weights"), 4);
 		glUniform1f (glGetUniformLocation (renderUpHeightSP, "pitch"), (float) (1.0 / info->height));
 
-		scalers s (kernel::Lanczos3, info->height, cfg->targetHeight);
+		scalers s (cfg->scaleKernel, cfg->scaleTaps, info->height, cfg->targetHeight);
 
 		frameGPUi* weights = new frameGPUi (cfg->targetHeight, 2, iFormat::FLOAT32, false);
 		glActiveTexture (GL_TEXTURE0 + 4);
@@ -337,7 +337,8 @@ bool renderer::renderInit () {
 		const char* renderUpWidthFP =
 			#include "shaders/upscale.h"
 
-		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision, "#define WIDTH");
+		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
+			cfg->scaleTaps, "");
 		if (!renderUpWidthSP)
 			return false;
 
@@ -346,7 +347,7 @@ bool renderer::renderInit () {
 		glUniform1i (glGetUniformLocation (renderUpWidthSP, "weights"), 5);
 		glUniform1f (glGetUniformLocation (renderUpWidthSP, "pitch"), (float) (1.0 / info->width));
 
-		scalers s (kernel::Lanczos3, info->width, cfg->targetWidth);
+		scalers s (cfg->scaleKernel, cfg->scaleTaps, info->width, cfg->targetWidth);
 
 		frameGPUi* weights = new frameGPUi (cfg->targetWidth, 2, iFormat::FLOAT32, false);
 		glActiveTexture (GL_TEXTURE0 + 5);
@@ -364,15 +365,13 @@ bool renderer::renderInit () {
 	const char* renderDitherFP =
 		#include "shaders/dither.h"
 
-	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision,
-		cfg->sigmoidal ? "#define SIGMOIDAL" : "");
+	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision);
 	if (!renderDitherSP)
 		return false;
 
 	glUseProgram (renderDitherSP);
 	glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
 	glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), 3);
-
 	glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
 		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
 		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));

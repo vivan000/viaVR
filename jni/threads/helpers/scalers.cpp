@@ -20,7 +20,7 @@
 #include <math.h>
 #include "threads/helpers/scalers.h"
 
-double lanczos (double x, double radius) {
+double lanczos (double x, int radius) {
 	if (x == 0.0)
 		return 1.0;
 	if (x <= -radius || x >= radius)
@@ -30,19 +30,19 @@ double lanczos (double x, double radius) {
 	return radius * sin (pi_x) * sin (pi_x / radius) / pi_x / pi_x;
 }
 
-scalers::scalers (kernel k, int src, int dst) {
+scalers::scalers (kernel k, int taps, int src, int dst) {
 	switch (k) {
-		case kernel::Lanczos3:
+		case kernel::Lanczos:
 			weights = new float[8 * dst];
 			for (int i = 0; i < dst; i++) {
 				double x = (i + 0.5) * src / dst + 0.5;
 				x = floor (x) - x;
 				double sum = 0.0;
 				for (int j = -3; j <= 4; j++)
-					sum += lanczos (x + j, 3.0);
+					sum += lanczos (x + j, taps);
 				for (int j = 0; j < 4; j++) {
-					weights[i * 4 + j] = (float) (lanczos (x - j, 3.0) / sum);
-					weights[dst * 4 + i * 4 + j] = (float) (lanczos (x + j + 1, 3.0) / sum);
+					weights[i * 4 + j] = (float) (lanczos (x - j, taps) / sum);
+					weights[dst * 4 + i * 4 + j] = (float) (lanczos (x + j + 1, taps) / sum);
 				}
 			}
 

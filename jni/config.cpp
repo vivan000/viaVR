@@ -41,24 +41,21 @@ config::config () {
 				if (!strcmp (opt, "hwScaleLinear"))
 					hwScaleLinear = !strcmp (val, "true");
 
+				if (!strcmp (opt, "scaleKernel"))
+					scaleKernel = kernel::Lanczos;
+				if (!strcmp (opt, "scaleTaps"))
+					sscanf (val, "%i", &scaleTaps);
+
 				// processing
 				if (!strcmp (opt, "internalType")) {
-					int type;
-					sscanf (val, "%i", &type);
-					switch (type) {
-						case 0:
-							internalType = iFormat::INT8;
-							break;
-						case 1:
-							internalType = iFormat::INT10;
-							break;
-						case 2:
-							internalType = iFormat::FLOAT16;
-							break;
-						case 3:
-							internalType = iFormat::FLOAT32;
-							break;
-					}
+					if (!strcmp (val, "INT8"))
+						internalType = iFormat::INT8;
+					if (!strcmp (val, "INT10"))
+						internalType = iFormat::INT10;
+					if (!strcmp (val, "FLOAT16"))
+						internalType = iFormat::FLOAT16;
+					if (!strcmp (val, "FLOAT32"))
+						internalType = iFormat::FLOAT32;
 				}
 				if (!strcmp (opt, "highp"))
 					highp = !strcmp (val, "true");

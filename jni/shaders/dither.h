@@ -19,7 +19,6 @@
 
 R"(#version 300 es
 precision %s float;
-%s
 
 uniform sampler2D video;
 uniform sampler2D dither;
@@ -33,15 +32,7 @@ void main () {
 	vec3 pattern = texture (dither, coord * resize + offset.xy).rgb - 0.5;
 	pattern = (offset.z == 0.0) ? pattern.rrr : ((offset.z == 1.0) ? pattern.ggg : pattern.bbb);
 	pattern.g = -pattern.g;
-	vec3 preQ = texture (video, coord).rgb;
-
-#ifdef SIGMOIDAL
-	float s = tanh (2.0);
-	preQ = (tanh (4.0 * preQ - 2.0) + s) / (2.0 * s) * depth.x;
-#else
-	preQ = preQ * depth.x;
-#endif
-
+	vec3 preQ = texture (video, coord).rgb * depth.x;
 	vec3 postQ = round (preQ + pattern);
 	outColor = vec4 (postQ * depth.y, 1.0);
 })";

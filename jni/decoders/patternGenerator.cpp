@@ -1,11 +1,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include "decoders/patternGenerator.h"
-#include "videoInfo.h"
 
 patternGenerator::patternGenerator () {
-	width = 720;
-	height = 1280; // 1038;
+	width = 1280;
+	height = 720;
 	sarWidth = 1;
 	sarHeight = 1;
 	fpsNumerator = 30;
@@ -14,7 +13,7 @@ patternGenerator::patternGenerator () {
 	matrix = 1;
 	decoderCount = 0;
 
-	int mode = 6;
+	mode = 5;
 
 	switch (mode) {
 		case 1:
@@ -43,7 +42,7 @@ patternGenerator::patternGenerator () {
 			break;
 	}
 
-	videoInfo* info = new videoInfo (width, height, fourCC, range, matrix);
+	info = new videoInfo (width, height, fourCC, range, matrix);
 
 	int dheight = height + 720;
 	switch (mode) {
@@ -106,18 +105,18 @@ patternGenerator::patternGenerator () {
 			dataB = new unsigned char[info->chromaWidth * info->chromaHeight * bpp];
 			for (int y = 0; y < info->height; ++y)
 				for (int x = 0; x < info->width; ++x) {
-					int luma = 16*256;
+					int luma = 16*4;
 					if (((x + y) % 20 == 1) || (abs (x - y) % 20 == 1) || ((x + y) % 20 == 19) || (abs (x - y) % 20 == 19))
-						luma = 49*256;
+						luma = 49*4;
 					if (((x + y) % 20 == 0) || (abs (x - y) % 20 == 0))
-						luma = 82*256;
+						luma = 82*4;
 					((unsigned short*) dataR)[info->width * y + x] = luma;
 				}
 			for (int y = 0; y < info->chromaHeight; ++y)
 				for (int x = 0; x < info->chromaWidth; ++x) {
 					bool line = (((x * 2 + y * 2) % 20 == 0) || (abs (x * 2 - y * 2) % 20 == 0));
-					((unsigned short*) dataG)[info->chromaWidth * y + x] = line ? 90*256 : 128*256;
-					((unsigned short*) dataB)[info->chromaWidth * y + x] = line ? 240*256 : 128*256;
+					((unsigned short*) dataG)[info->chromaWidth * y + x] = line ? 90*4 : 128*4;
+					((unsigned short*) dataB)[info->chromaWidth * y + x] = line ? 240*4 : 128*4;
 				}
 			break;
 		case 6:
@@ -133,19 +132,17 @@ patternGenerator::patternGenerator () {
 				}
 			break;
 	}
-	infoptr = (void*) info;
 }
 
 patternGenerator::~patternGenerator () {
 	delete[] dataR;
 	delete[] dataG;
 	delete[] dataB;
-	delete (videoInfo*)infoptr;
+	delete info;
 }
 
 int patternGenerator::getNextVideoframe (char* buf, int size) {
-	int shift = 720 - (decoderCount * 10) % 720;
-	videoInfo* info = (videoInfo*) infoptr;
+	int shift = (mode == 6 ? 720 - (decoderCount * 10) % 720 : 0);
 
 	memcpy (buf, dataR, info->width * info->height * bpp);
 	if (info->planes == 3) {

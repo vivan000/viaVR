@@ -1,5 +1,6 @@
 #pragma once
 #include "interface/IVideoDecoder.h"
+#include "videoInfo.h"
 
 class patternGenerator: public IVideoDecoder {
 public:
@@ -23,7 +24,7 @@ public:
 	int getFourCC ();
 
 private:
-	void* infoptr;
+	videoInfo* info;
 
 	int width, height;
 	int sarWidth, sarHeight;
@@ -31,7 +32,7 @@ private:
 	int range, matrix, fourCC;
 	int bpp;
 
-	int decoderCount;
+	int mode, decoderCount;
 
 	unsigned char* dataR;
 	unsigned char* dataG;

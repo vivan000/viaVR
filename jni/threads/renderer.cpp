@@ -127,7 +127,7 @@ void renderer::render () {
 
 			glFlush ();
 
-#ifdef PERFOMANCE
+#ifdef PERFORMANCE
 			rcount++;
 			if (rcount == 100) {
 				LOGD ("Rendering: %6.3f ms", (nanotime () - rstart) / rcount / 1000000.0);

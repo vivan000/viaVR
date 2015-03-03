@@ -34,14 +34,14 @@ in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	vec2 random = texture (dither, coord * resize).rg * 30.0 - 15.0;
+	vec2 random = texture (dither, coord * resize).rg * 14.0 + 1.0;
 	vec2 x = random * pitch.x;
 	vec2 y = random * pitch.y;
 	vec3 pix0 = texture (video, coord).rgb;
-	vec3 pix1 = texture (video, vec2 (coord.x + x.x, coord.y + y.y)).rgb;
-	vec3 pix2 = texture (video, vec2 (coord.x + x.y, coord.y - y.x)).rgb;
-	vec3 pix3 = texture (video, vec2 (coord.x - x.x, coord.y - y.y)).rgb;
-	vec3 pix4 = texture (video, vec2 (coord.x - x.y, coord.y + y.x)).rgb;
+	vec3 pix1 = texture (video, vec2 (coord.x - x.x, coord.y - y.y)).rgb;
+	vec3 pix2 = texture (video, vec2 (coord.x - x.y, coord.y + y.x)).rgb;
+	vec3 pix3 = texture (video, vec2 (coord.x + x.x, coord.y + y.y)).rgb;
+	vec3 pix4 = texture (video, vec2 (coord.x + x.y, coord.y - y.x)).rgb;
 
 	vec3 avg = (pix1 + pix3) * 0.25 + (pix2 + pix4) * 0.25;
 	vec3 avgDif = abs (avg - pix0);

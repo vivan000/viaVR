@@ -27,16 +27,7 @@ uniform sampler2D video;
 uniform sampler2D weights;
 uniform vec2 pitch;
 in vec2 coord;
-layout(location = 0) out vec4 outColor;
-#ifdef ANTIRING
-#ifdef HEIGHT
-layout(location = 1) out vec4 minColor;
-layout(location = 2) out vec4 maxColor;
-#else
-uniform sampler2D videoMin;
-uniform sampler2D videoMax;
-#endif
-#endif
+out vec4 outColor;
 
 #ifdef HEIGHT
 #define newcoord(c) (vec2 (coord.x, coord.y + c * pitch.y))
@@ -70,24 +61,16 @@ void main () {
 #endif
 
 #ifdef ANTIRING
-#ifdef HEIGHT
-	minColor = vec4 (min (
-		texture (video, newcoord (-0.5)).rgb,
-		texture (video, newcoord ( 0.5)).rgb),
-		1.0);
-	maxColor = vec4 (max (
-		texture (video, newcoord (-0.5)).rgb,
-		texture (video, newcoord ( 0.5)).rgb),
-		1.0);
-#else
-	vec3 minColor = min (
-		texture (videoMin, newcoord (-0.5)).rgb,
-		texture (videoMin, newcoord ( 0.5)).rgb);
-	vec3 maxColor = max (
-		texture (videoMax, newcoord (-0.5)).rgb,
-		texture (videoMax, newcoord ( 0.5)).rgb);
-	result = clamp (result, minColor, maxColor);
-#endif
+	vec3 pix1 = texture (video, newcoord (-1.5)).rgb;
+	vec3 pix2 = texture (video, newcoord (-0.5)).rgb;
+	vec3 pix3 = texture (video, newcoord ( 0.5)).rgb;
+	vec3 pix4 = texture (video, newcoord ( 1.5)).rgb;
+	vec3 strength = pow (max ((pix2 - pix1) * (pix3 - pix4), 0.0), vec3 (0.15));
+
+	vec3 minColor = min (pix2, pix3);
+	vec3 maxColor = max (pix2, pix3);
+
+	result = mix (clamp (result, minColor, maxColor), result, strength);
 #endif
 
 	outColor = vec4 (result, 1.0);

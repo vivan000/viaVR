@@ -22,7 +22,6 @@
 
 enum class passType {
 	Default,
-	Antiring,
 	Dither,
 };
 

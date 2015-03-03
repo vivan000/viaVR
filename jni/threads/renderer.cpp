@@ -23,8 +23,6 @@
 #define textureDither 3
 #define textureScaleWeightsY 4
 #define textureScaleWeightsX 5
-#define textureScaleAntiringMin 6
-#define textureScaleAntiringMax 7
 
 int64_t nanotime () {
 	struct timespec now;
@@ -53,12 +51,6 @@ renderer::renderer (videoInfo* info, config* cfg, queue<frameCPU>* decodeQueue, 
 	to = new frameGPUo (info, cfg);
 
 	glGenFramebuffers (1, &framebuffer);
-	glGenFramebuffers (1, &framebufferAR);
-
-	glBindFramebuffer (GL_FRAMEBUFFER, framebufferAR);
-	const GLenum drawArrays[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-	glDrawBuffers (3, drawArrays);
-
 	glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
 
 	if (renderInit ())
@@ -137,11 +129,6 @@ void renderer::render () {
 				switch ((*passIt)->type) {
 					case passType::Default:
 						(*passIt)->executeDefault ();
-						break;
-					case passType::Antiring:
-						glBindFramebuffer (GL_FRAMEBUFFER, framebufferAR);
-						(*passIt)->executeDefault ();
-						glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
 						break;
 					case passType::Dither:
 						(*passIt)->executeDither (to->plane, cfg->targetWidth, cfg->targetHeight);
@@ -345,22 +332,7 @@ bool renderer::renderInit () {
 		scalers s (cfg->scaleKernel, cfg->scaleTaps, info->height, cfg->targetHeight);
 
 		frameGPUi* weights = new frameGPUi (cfg->targetHeight, 2, iFormat::FLOAT32, false);
-		frameGPUi* antiringMin = new frameGPUi (info->width, cfg->targetHeight, cfg->internalType, false);
-		frameGPUi* antiringMax = new frameGPUi (info->width, cfg->targetHeight, cfg->internalType, false);
 		helperFrames.push_back (weights);
-		helperFrames.push_back (antiringMin);
-		helperFrames.push_back (antiringMax);
-
-		glBindFramebuffer (GL_FRAMEBUFFER, framebufferAR);
-		glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, antiringMin->plane, 0);
-		glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, antiringMax->plane, 0);
-		glBindFramebuffer (GL_FRAMEBUFFER, framebuffer);
-
-		glActiveTexture (GL_TEXTURE0 + textureScaleAntiringMin);
-		glBindTexture (GL_TEXTURE_2D, antiringMin->plane);
-
-		glActiveTexture (GL_TEXTURE0 + textureScaleAntiringMax);
-		glBindTexture (GL_TEXTURE_2D, antiringMax->plane);
 
 		glActiveTexture (GL_TEXTURE0 + textureScaleWeightsY);
 		glBindTexture (GL_TEXTURE_2D, weights->plane);
@@ -369,7 +341,7 @@ bool renderer::renderInit () {
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, cfg->targetHeight, cfg->internalType, false),
-			renderUpHeightSP, 0, passType::Antiring));
+			renderUpHeightSP));
 		LOGD ("Upscale height%s", cfg->antiring ? " + antiring" : "");
 	}
 
@@ -385,10 +357,6 @@ bool renderer::renderInit () {
 
 		glUseProgram (renderUpWidthSP);
 		glUniform1i (glGetUniformLocation (renderUpWidthSP, "video"), 0);
-		if (cfg->antiring) {
-			glUniform1i (glGetUniformLocation (renderUpWidthSP, "videoMin"), textureScaleAntiringMin);
-			glUniform1i (glGetUniformLocation (renderUpWidthSP, "videoMax"), textureScaleAntiringMax);
-		}
 		glUniform1i (glGetUniformLocation (renderUpWidthSP, "weights"), textureScaleWeightsX);
 		glUniform2f (glGetUniformLocation (renderUpWidthSP, "pitch"),
 			(float) (1.0 / info->width), (float) (1.0 / info->height));

@@ -316,7 +316,7 @@ bool renderer::renderInit () {
 	// upscale height
 	if (cfg->targetHeight > info->height && !cfg->hwScale) {
 		const char* renderUpHeightFP =
-			#include "shaders/upscaleAntiring.h"
+			#include "shaders/upscale.h"
 
 		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
 			cfg->scaleTaps, "HEIGHT", cfg->antiring ? "#define ANTIRING" : "");
@@ -348,7 +348,7 @@ bool renderer::renderInit () {
 	// upscale width
 	if (cfg->targetWidth > info->width && !cfg->hwScale) {
 		const char* renderUpWidthFP =
-			#include "shaders/upscaleAntiring.h"
+			#include "shaders/upscale.h"
 
 		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
 			cfg->scaleTaps, "WIDTH", cfg->antiring ? "#define ANTIRING" : "");

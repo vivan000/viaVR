@@ -19,23 +19,29 @@
 
 R"(#version 300 es
 precision %s float;
-#define taps %i
+#define TAPS %i
+#define %s
 %s
 
 uniform sampler2D video;
 uniform sampler2D weights;
-uniform float pitch;
+uniform vec2 pitch;
 in vec2 coord;
-out vec4 outColor;
-
+layout(location = 0) out vec4 outColor;
+#ifdef ANTIRING
 #ifdef HEIGHT
 layout(location = 1) out vec4 minColor;
 layout(location = 2) out vec4 maxColor;
-#define newcoord(c) (vec2 (coord.x, coord.y + c * pitch))
 #else
 uniform sampler2D videoMin;
 uniform sampler2D videoMax;
-#define newcoord(c) (vec2 (coord.x + c * pitch, coord.y))
+#endif
+#endif
+
+#ifdef HEIGHT
+#define newcoord(c) (vec2 (coord.x, coord.y + c * pitch.y))
+#else
+#define newcoord(c) (vec2 (coord.x + c * pitch.x, coord.y))
 #endif
 
 void main () {
@@ -50,29 +56,29 @@ void main () {
 	vec3 result = vec3 (0.0);
 	result += texture (video, newcoord (-0.5)).rgb * weightsL.r;
 	result += texture (video, newcoord ( 0.5)).rgb * weightsR.r;
-#if taps >= 2
+#if TAPS >= 2
 	result += texture (video, newcoord (-1.5)).rgb * weightsL.g;
 	result += texture (video, newcoord ( 1.5)).rgb * weightsR.g;
 #endif
-#if taps >= 3
+#if TAPS >= 3
 	result += texture (video, newcoord (-2.5)).rgb * weightsL.b;
 	result += texture (video, newcoord ( 2.5)).rgb * weightsR.b;
 #endif
-#if taps >= 4
+#if TAPS >= 4
 	result += texture (video, newcoord (-3.5)).rgb * weightsL.a;
 	result += texture (video, newcoord ( 3.5)).rgb * weightsR.a;
 #endif
 
+#ifdef ANTIRING
 #ifdef HEIGHT
 	minColor = vec4 (min (
 		texture (video, newcoord (-0.5)).rgb,
 		texture (video, newcoord ( 0.5)).rgb),
-	1.0);
-	maxColor = vec4 (min (
+		1.0);
+	maxColor = vec4 (max (
 		texture (video, newcoord (-0.5)).rgb,
 		texture (video, newcoord ( 0.5)).rgb),
-	1.0);
-	outColor = vec4 (result, 1.0);
+		1.0);
 #else
 	vec3 minColor = min (
 		texture (videoMin, newcoord (-0.5)).rgb,
@@ -80,6 +86,9 @@ void main () {
 	vec3 maxColor = max (
 		texture (videoMax, newcoord (-0.5)).rgb,
 		texture (videoMax, newcoord ( 0.5)).rgb);
-	outColor = vec4 (clamp (result, minColor, maxColor), 1.0);
-#endif	
+	result = clamp (result, minColor, maxColor);
+#endif
+#endif
+
+	outColor = vec4 (result, 1.0);
 })";

@@ -19,33 +19,38 @@
 
 #include "threads/helpers/renderingPass.h"
 
-renderingPass::renderingPass (frameGPUi* frame, GLuint program, int target, GLint dither) {
-	renderingPass::frame = frame;
-	renderingPass::program = program;
-	renderingPass::target = target;
-	renderingPass::dither = dither;
-}
+renderingPass::renderingPass (frameGPUi* frame, GLuint program, int target, passType type, GLint uniform) :
+	frame (frame),
+	program (program),
+	target (target),
+	type (type),
+	uniform (uniform) {}
 
 renderingPass::~renderingPass () {
-	delete frame;
+	if (renderingPass::type != passType::Dither)
+		delete frame;
 	glDeleteProgram (program);
 }
 
-
-void renderingPass::execute () {
+// default pass
+void renderingPass::executeDefault () {
 	glViewport (0, 0, frame->width, frame->height);
 	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame->plane, 0);
+
 	glUseProgram (program);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+
 	glActiveTexture (GL_TEXTURE0 + target);
 	glBindTexture (GL_TEXTURE_2D, frame->plane);
 }
 
-void renderingPass::execute (GLuint plane, int targetWidth, int targetHeight) {
+// dither pass
+void renderingPass::executeDither (GLuint plane, int targetWidth, int targetHeight) {
 	glViewport (0, 0, targetWidth, targetHeight);
 	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, plane, 0);
+
 	glUseProgram (program);
-	glUniform3f (dither,
+	glUniform3f (uniform,
 		(float) ((rand() % 32) / 32.0),
 		(float) ((rand() % 32) / 32.0),
 		(float) (rand() % 3));

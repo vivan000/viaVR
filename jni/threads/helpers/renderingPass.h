@@ -20,16 +20,24 @@
 #pragma once
 #include "frames/frames.h"
 
+enum class passType {
+	Default,
+	Antiring,
+	Dither,
+};
+
 class renderingPass {
 public:
-	renderingPass (frameGPUi* frame, GLuint program, int target, GLint dither);
+	renderingPass (frameGPUi* frame, GLuint program, int target = 0, passType type = passType::Default, GLint uniform = 0);
 	~renderingPass ();
-	void execute ();
-	void execute (GLuint plane, int targetWidth, int targetHeight);
-	GLint dither;
+	void executeDefault ();
+	void executeDither (GLuint plane, int targetWidth, int targetHeight);
+
+	const passType type;
 
 private:
-	frameGPUi* frame;
-	GLuint program;
-	int target;
+	const frameGPUi* frame;
+	const GLuint program;
+	const int target;
+	const GLint uniform;
 };

@@ -98,9 +98,10 @@ private:
 	EGLSurface pbuffer;
 	EGLContext context;
 	GLuint* vboIds;
-	GLuint framebuffer;
+	GLuint framebuffer, framebufferAR;
 
 	rPass pass;
+	std::vector<frameGPUi*> helperFrames;
 
 	frameCPU* from;
 	frameGPUu* up;

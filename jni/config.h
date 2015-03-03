@@ -31,12 +31,13 @@ public:
 	int targetWidth, targetHeight;
 
 	bool hwChroma = true;
-	bool hwScale = true;
+	bool hwScale = false;
 	bool hwChromaLinear = true;
-	bool hwScaleLinear = true;
+	bool hwScaleLinear = false;
 
 	kernel scaleKernel = kernel::Lanczos;
 	int scaleTaps = 3;
+	bool antiring = true;
 
 	iFormat internalType = iFormat::INT10;
 	bool highp = true;

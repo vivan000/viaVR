@@ -9,14 +9,13 @@ Advanced video renderer for Android. [Overview](https://github.com/vivan000/viaV
 - proper color conversion (BT.709 support, correct chroma location).
 - fast h/w bilinear scaling and chroma upsampling.
 - better chroma upsampling (Catmull-Rom).
-- better image upscaling (Lanczos 3-tap).
+- better image upscaling (Lanczos 3/4 + antiringing).
 - debanding.
 - high quality dithering (dynamic ordered).
 - native code (C++), full GPU acceleration (OpenGL ES 3.0).
 
 ### Planned features:
 - better downscaling (bicubic).
-- better image upscaling (antiringing).
 - subtitle consumer.
 - OSD (stats).
 - settings.

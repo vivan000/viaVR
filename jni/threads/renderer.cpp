@@ -331,7 +331,7 @@ bool renderer::renderInit () {
 
 		scalers s (cfg->scaleKernel, cfg->scaleTaps, info->height, cfg->targetHeight);
 
-		frameGPUi* weights = new frameGPUi (cfg->targetHeight, 2, iFormat::FLOAT32, false);
+		frameGPUi* weights = new frameGPUi (cfg->targetHeight, 2, iFormat::FLOAT16, false);
 		helperFrames.push_back (weights);
 
 		glActiveTexture (GL_TEXTURE0 + textureScaleWeightsY);
@@ -363,7 +363,7 @@ bool renderer::renderInit () {
 
 		scalers s (cfg->scaleKernel, cfg->scaleTaps, info->width, cfg->targetWidth);
 
-		frameGPUi* weights = new frameGPUi (cfg->targetWidth, 2, iFormat::FLOAT32, false);
+		frameGPUi* weights = new frameGPUi (cfg->targetWidth, 2, iFormat::FLOAT16, false);
 		helperFrames.push_back (weights);
 
 		glActiveTexture (GL_TEXTURE0 + textureScaleWeightsX);

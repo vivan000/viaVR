@@ -21,26 +21,27 @@ R"(#version 300 es
 precision %s float;
 %s
 
-uniform sampler2D YCbCr;
+uniform sampler2D video;
 #ifdef SEPARATE
-uniform sampler2D CbCr;
+uniform sampler2D chroma;
 #else
-#define CbCr YCbCr
+#define chroma video
 #endif
-uniform vec2 width;
+uniform vec2 chromaSize;
+uniform vec2 chromaPitch;
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	vec4 weight = fract (coord.x * width.x) > 0.5 ?
+	vec4 weight = fract (coord.x * chromaSize.x) > 0.5 ?
 		vec4 (-0.0625, 0.5625, 0.5625, -0.0625) :
 		vec4 ( 0.0000, 1.0000, 0.0000,  0.0000);
 	
-	float luma = texture (YCbCr, coord).r;
-	vec2 chroma = 
-		texture (CbCr, vec2 (coord.x - width.y, coord.y)).gb * weight.r +
-		texture (CbCr, coord).gb * weight.g +
-		texture (CbCr, vec2 (coord.x + width.y, coord.y)).gb * weight.b +
-		texture (CbCr, vec2 (coord.x + 2.0 * width.y, coord.y)).gb * weight.a;
-	outColor = vec4 (luma, chroma, 1.0);
+	vec3 result = vec3 (texture (video, coord).r, 0.0, 0.0);
+	result.gb += texture (chroma, vec2 (coord.x -       chromaPitch.x, coord.y)).gb * weight.r;
+	result.gb += texture (chroma, coord                                        ).gb * weight.g;
+	result.gb += texture (chroma, vec2 (coord.x +       chromaPitch.x, coord.y)).gb * weight.b;
+	result.gb += texture (chroma, vec2 (coord.x + 2.0 * chromaPitch.x, coord.y)).gb * weight.a;
+
+	outColor = vec4 (result, 1.0);
 })";

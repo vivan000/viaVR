@@ -27,16 +27,16 @@ precision %s float;
 
 uniform sampler2D video;
 uniform sampler2D dither;
-uniform vec3 thresh;
-uniform vec2 pitch;
-uniform vec2 resize;
+uniform vec3 debandThresh;
+uniform vec2 debandResize;
+uniform vec2 debandPitch;
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	vec2 random = texture (dither, coord * resize).rg * 14.0 + 1.0;
-	vec2 x = random * pitch.x;
-	vec2 y = random * pitch.y;
+	vec2 random = texture (dither, coord * debandResize).rg * 14.0 + 1.0;
+	vec2 x = random * debandPitch.x;
+	vec2 y = random * debandPitch.y;
 	vec3 pix0 = texture (video, coord).rgb;
 	vec3 pix1 = texture (video, vec2 (coord.x - x.x, coord.y - y.y)).rgb;
 	vec3 pix2 = texture (video, vec2 (coord.x - x.y, coord.y + y.x)).rgb;
@@ -51,10 +51,12 @@ void main () {
 	vec3 midDif1 = abs (pix1 + pix3 - 2.0 * pix0);
 	vec3 midDif2 = abs (pix2 + pix4 - 2.0 * pix0);
 	vec3 factor = pow (
-		clamp (avgDif  * thresh.x + 3.0, 0.0, 1.0) *
-		clamp (maxDif  * thresh.y + 3.0, 0.0, 1.0) *
-		clamp (midDif1 * thresh.z + 3.0, 0.0, 1.0) *
-		clamp (midDif2 * thresh.z + 3.0, 0.0, 1.0),
+		clamp (avgDif  * debandThresh.x + 3.0, 0.0, 1.0) *
+		clamp (maxDif  * debandThresh.y + 3.0, 0.0, 1.0) *
+		clamp (midDif1 * debandThresh.z + 3.0, 0.0, 1.0) *
+		clamp (midDif2 * debandThresh.z + 3.0, 0.0, 1.0),
 		vec3 (0.1));
-	outColor = vec4 (mix (pix0, avg, factor), 1.0);
+	vec3 result = mix (pix0, avg, factor);
+
+	outColor = vec4 (result, 1.0);
 })";

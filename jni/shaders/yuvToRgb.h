@@ -21,11 +21,15 @@ R"(#version 300 es
 precision %s float;
 
 uniform sampler2D video;
-uniform mat3 conversion;
-uniform vec3 offset;
+uniform mat3 colorMatrix;
+uniform vec3 colorOffset;
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	outColor = vec4 (texture (video, coord).rgb * conversion + offset, 1.0);
+	vec3 result = texture (video, coord).rgb;
+
+	result = result * colorMatrix + colorOffset;
+
+	outColor = vec4 (result, 1.0);
 })";

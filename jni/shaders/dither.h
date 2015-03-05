@@ -22,17 +22,21 @@ precision %s float;
 
 uniform sampler2D video;
 uniform sampler2D dither;
-uniform vec2 depth;
-uniform vec2 resize;
-uniform vec3 offset;
+uniform vec2 ditherDepth;
+uniform vec2 ditherResize;
+uniform vec3 ditherOffset;
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	vec3 pattern = texture (dither, coord * resize + offset.xy).rgb - 0.5;
-	pattern = (offset.z == 0.0) ? pattern.rrr : ((offset.z == 1.0) ? pattern.ggg : pattern.bbb);
+	vec3 result = texture (video, coord).rgb;
+
+	vec3 pattern = texture (dither, coord * ditherResize + ditherOffset.xy).rgb - 0.5;
+	pattern = (ditherOffset.z == 0.0) ?
+		pattern.rrr : ((ditherOffset.z == 1.0) ?
+			pattern.ggg : pattern.bbb);
 	pattern.g = -pattern.g;
-	vec3 preQ = texture (video, coord).rgb * depth.x;
-	vec3 postQ = round (preQ + pattern);
-	outColor = vec4 (postQ * depth.y, 1.0);
+	result = round (result * ditherDepth.x + pattern) * ditherDepth.y;
+
+	outColor = vec4 (result, 1.0);
 })";

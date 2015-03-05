@@ -190,7 +190,7 @@ bool renderer::renderInit () {
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
 			if (info->halfWidth && cfg->hwChroma)
-				glUniform1f (glGetUniformLocation (renderToInternalSP, "pitch"), (float) (0.5 / info->width));
+				glUniform1f (glGetUniformLocation (renderToInternalSP, "chromaShift"), (float) (0.5 / info->width));
 
 			pass.push_back (new renderingPass (
 				new frameGPUi (info->width, info->height, cfg->internalType, false),
@@ -230,9 +230,11 @@ bool renderer::renderInit () {
 			return false;
 
 		glUseProgram (render420to422SP);
-		glUniform1i (glGetUniformLocation (render420to422SP, "YCbCr"), 0);
-		glUniform2f (glGetUniformLocation (render420to422SP, "height"),
-			(float) info->height / 2.0, (float) 2.0 / info->height);
+		glUniform1i (glGetUniformLocation (render420to422SP, "video"), 0);
+		glUniform2f (glGetUniformLocation (render420to422SP, "chromaSize"),
+			(float) info->chromaWidth, (float) info->chromaHeight);
+		glUniform2f (glGetUniformLocation (render420to422SP, "chromaPitch"),
+			(float) 1.0 / info->chromaWidth, (float) 1.0 / info->chromaHeight);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->chromaWidth, info->height, cfg->internalType, false),
@@ -251,11 +253,13 @@ bool renderer::renderInit () {
 			return false;
 
 		glUseProgram (render422to444SP);
-		glUniform1i (glGetUniformLocation (render422to444SP, "YCbCr"), 0);
+		glUniform1i (glGetUniformLocation (render422to444SP, "video"), 0);
 		if (info->halfHeight)
-			glUniform1i (glGetUniformLocation (render422to444SP, "CbCr"), 1);
-		glUniform2f (glGetUniformLocation (render422to444SP, "width"),
-			(float) info->width / 2.0, (float) 2.0 / info->width);
+			glUniform1i (glGetUniformLocation (render422to444SP, "chroma"), 1);
+		glUniform2f (glGetUniformLocation (render422to444SP, "chromaSize"),
+			(float) info->chromaWidth, (float) info->chromaHeight);
+		glUniform2f (glGetUniformLocation (render422to444SP, "chromaPitch"),
+			(float) 1.0 / info->chromaWidth, (float) 1.0 / info->chromaHeight);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType, false),
@@ -275,14 +279,14 @@ bool renderer::renderInit () {
 		glUseProgram (renderDebandSP);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "dither"), textureDither);
-		glUniform3f (glGetUniformLocation (renderDebandSP, "thresh"),
+		glUniform3f (glGetUniformLocation (renderDebandSP, "debandThresh"),
 			(float) (-3.0 * 255.0 / cfg->debandAvgDif),
 			(float) (-3.0 * 255.0 / cfg->debandMaxDif),
 			(float) (-3.0 * 255.0 / cfg->debandMidDif));
-		glUniform2f (glGetUniformLocation (renderDebandSP, "pitch"),
+		glUniform2f (glGetUniformLocation (renderDebandSP, "debandPitch"),
 			(float) (1.0 / info->width),
 			(float) (1.0 / info->height));
-		glUniform2f (glGetUniformLocation (renderDebandSP, "resize"),
+		glUniform2f (glGetUniformLocation (renderDebandSP, "debandResize"),
 			(float) (cfg->targetWidth / 32.0),
 			(float) (cfg->targetHeight / 32.0));
 
@@ -302,9 +306,9 @@ bool renderer::renderInit () {
 			return false;
 
 		glUseProgram (renderYuvToRgbSP);
-		glUniform1i			(glGetUniformLocation (renderYuvToRgbSP, "video"),		0);
-		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "conversion"), 1, GL_FALSE, info->colorConversion);
-		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "offset"),		1, info->colorOffset);
+		glUniform1i			(glGetUniformLocation (renderYuvToRgbSP, "video"), 0);
+		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "colorMatrix"), 1, GL_FALSE, info->colorConversion);
+		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "colorOffset"), 1, info->colorOffset);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType,
@@ -388,10 +392,10 @@ bool renderer::renderInit () {
 	glUseProgram (renderDitherSP);
 	glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
 	glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), textureDither);
-	glUniform2f (glGetUniformLocation (renderDitherSP, "depth"),
+	glUniform2f (glGetUniformLocation (renderDitherSP, "ditherDepth"),
 		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
 		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));
-	glUniform2f (glGetUniformLocation (renderDitherSP, "resize"),
+	glUniform2f (glGetUniformLocation (renderDitherSP, "ditherResize"),
 		(float) (cfg->targetWidth / 32.0),
 		(float) (cfg->targetHeight / 32.0));
 
@@ -406,7 +410,7 @@ bool renderer::renderInit () {
 	glActiveTexture (GL_TEXTURE0);
 
 	pass.push_back (new renderingPass (
-		nullptr, renderDitherSP, 0, passType::Dither, glGetUniformLocation (renderDitherSP, "offset")));
+		nullptr, renderDitherSP, 0, passType::Dither, glGetUniformLocation (renderDitherSP, "ditherOffset")));
 	LOGD ("Dither");
 
 	return true;

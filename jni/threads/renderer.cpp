@@ -220,50 +220,51 @@ bool renderer::renderInit () {
 		}
 	}
 
-	// convert 4:2:0 -> 4:2:2
+	// upsample chroma height (4:2:0 -> 4:2:2)
 	if (info->halfHeight && !cfg->hwChroma) {
-		const char* render420to422FP =
-			#include "shaders/up420to422.h"
+		const char* renderUpHeightFP =
+			#include "shaders/upsample.h"
 
-		GLuint render420to422SP = shader.loadShaders (renderVP, render420to422FP, precision);
-		if (!render420to422SP)
+		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
+			"HEIGHT", "");
+		if (!renderUpHeightSP)
 			return false;
 
-		glUseProgram (render420to422SP);
-		glUniform1i (glGetUniformLocation (render420to422SP, "video"), 0);
-		glUniform2f (glGetUniformLocation (render420to422SP, "chromaSize"),
+		glUseProgram (renderUpHeightSP);
+		glUniform1i (glGetUniformLocation (renderUpHeightSP, "video"), 0);
+		glUniform2f (glGetUniformLocation (renderUpHeightSP, "chromaSize"),
 			(float) info->chromaWidth, (float) info->chromaHeight);
-		glUniform2f (glGetUniformLocation (render420to422SP, "chromaPitch"),
+		glUniform2f (glGetUniformLocation (renderUpHeightSP, "chromaPitch"),
 			(float) 1.0 / info->chromaWidth, (float) 1.0 / info->chromaHeight);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->chromaWidth, info->height, cfg->internalType, false),
-			render420to422SP, 1));
+			renderUpHeightSP, 1));
 		LOGD ("Upsample chroma height");
 	}
 
-	// convert 4:2:2 -> 4:4:4
+	// upsample chroma width (4:2:2 -> 4:4:4)
 	if (info->halfWidth && !cfg->hwChroma) {
-		const char* render422to444FP =
-			#include "shaders/up422to444.h"
+		const char* renderUpWidthFP =
+			#include "shaders/upsample.h"
 
-		GLuint render422to444SP = shader.loadShaders (renderVP, render422to444FP, precision,
-			info->halfHeight ? "#define SEPARATE" : "");
-		if (!render422to444SP)
+		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
+			"WIDTH", info->halfHeight ? "#define SEPARATE" : "");
+		if (!renderUpWidthSP)
 			return false;
 
-		glUseProgram (render422to444SP);
-		glUniform1i (glGetUniformLocation (render422to444SP, "video"), 0);
+		glUseProgram (renderUpWidthSP);
+		glUniform1i (glGetUniformLocation (renderUpWidthSP, "video"), 0);
 		if (info->halfHeight)
-			glUniform1i (glGetUniformLocation (render422to444SP, "chroma"), 1);
-		glUniform2f (glGetUniformLocation (render422to444SP, "chromaSize"),
+			glUniform1i (glGetUniformLocation (renderUpWidthSP, "chroma"), 1);
+		glUniform2f (glGetUniformLocation (renderUpWidthSP, "chromaSize"),
 			(float) info->chromaWidth, (float) info->chromaHeight);
-		glUniform2f (glGetUniformLocation (render422to444SP, "chromaPitch"),
+		glUniform2f (glGetUniformLocation (renderUpWidthSP, "chromaPitch"),
 			(float) 1.0 / info->chromaWidth, (float) 1.0 / info->chromaHeight);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType, false),
-			render422to444SP));
+			renderUpWidthSP));
 		LOGD ("Upsample chroma width");
 	}
 

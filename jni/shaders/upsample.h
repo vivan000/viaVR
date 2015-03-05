@@ -19,11 +19,11 @@
 
 R"(#version 300 es
 precision %s float;
-#define %s
-%s
+#define HEIGHT %i
+#define SEPARATE %i
 
 uniform sampler2D video;
-#ifdef SEPARATE
+#if SEPARATE
 uniform sampler2D chroma;
 #else
 #define chroma video
@@ -33,7 +33,7 @@ uniform vec2 chromaPitch;
 in vec2 coord;
 out vec4 outColor;
 
-#ifdef HEIGHT
+#if HEIGHT
 #define newcoord(c) (vec2 (coord.x, coord.y + c * chromaPitch.y))
 #else
 #define newcoord(c) (vec2 (coord.x + c * chromaPitch.x, coord.y))
@@ -42,7 +42,7 @@ out vec4 outColor;
 void main () {
 	vec3 result = vec3 (0.0);
 
-#ifdef HEIGHT
+#if HEIGHT
 	vec2 pix1 = texture (video, newcoord (-1.5)).gb;
 	vec2 pix2 = texture (video, newcoord (-0.5)).gb;
 	vec2 pix3 = texture (video, newcoord ( 0.5)).gb;

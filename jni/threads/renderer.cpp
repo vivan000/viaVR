@@ -181,7 +181,7 @@ bool renderer::renderInit () {
 				#include "shaders/planarToInternal.h"
 
 			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderToInternalFP, precision,
-				info->halfWidth && cfg->hwChroma ? "#define HWCHROMA" : "", info->bitdepth);
+				info->halfWidth && cfg->hwChroma, info->bitdepth);
 			if (!renderToInternalSP)
 				return false;
 
@@ -226,7 +226,7 @@ bool renderer::renderInit () {
 			#include "shaders/upsample.h"
 
 		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
-			"HEIGHT", "");
+			true, false);
 		if (!renderUpHeightSP)
 			return false;
 
@@ -249,7 +249,7 @@ bool renderer::renderInit () {
 			#include "shaders/upsample.h"
 
 		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
-			"WIDTH", info->halfHeight ? "#define SEPARATE" : "");
+			false, info->halfHeight);
 		if (!renderUpWidthSP)
 			return false;
 
@@ -280,16 +280,16 @@ bool renderer::renderInit () {
 		glUseProgram (renderDebandSP);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "dither"), textureDither);
-		glUniform3f (glGetUniformLocation (renderDebandSP, "debandThresh"),
-			(float) (-3.0 * 255.0 / cfg->debandAvgDif),
-			(float) (-3.0 * 255.0 / cfg->debandMaxDif),
-			(float) (-3.0 * 255.0 / cfg->debandMidDif));
-		glUniform2f (glGetUniformLocation (renderDebandSP, "debandPitch"),
+		glUniform2f (glGetUniformLocation (renderDebandSP, "pitch"),
 			(float) (1.0 / info->width),
 			(float) (1.0 / info->height));
 		glUniform2f (glGetUniformLocation (renderDebandSP, "debandResize"),
 			(float) (cfg->targetWidth / 32.0),
 			(float) (cfg->targetHeight / 32.0));
+		glUniform3f (glGetUniformLocation (renderDebandSP, "debandThresh"),
+			(float) (-3.0 * 255.0 / cfg->debandAvgDif),
+			(float) (-3.0 * 255.0 / cfg->debandMaxDif),
+			(float) (-3.0 * 255.0 / cfg->debandMidDif));
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType, false),
@@ -307,9 +307,11 @@ bool renderer::renderInit () {
 			return false;
 
 		glUseProgram (renderYuvToRgbSP);
-		glUniform1i			(glGetUniformLocation (renderYuvToRgbSP, "video"), 0);
-		glUniformMatrix3fv	(glGetUniformLocation (renderYuvToRgbSP, "colorMatrix"), 1, GL_FALSE, info->colorConversion);
-		glUniform3fv		(glGetUniformLocation (renderYuvToRgbSP, "colorOffset"), 1, info->colorOffset);
+		glUniform1i (glGetUniformLocation (renderYuvToRgbSP, "video"), 0);
+		glUniformMatrix3fv (glGetUniformLocation (renderYuvToRgbSP, "colorMatrix"),
+			1, GL_FALSE, info->colorConversion);
+		glUniform3fv (glGetUniformLocation (renderYuvToRgbSP, "colorOffset"),
+			1, info->colorOffset);
 
 		pass.push_back (new renderingPass (
 			new frameGPUi (info->width, info->height, cfg->internalType,
@@ -324,7 +326,7 @@ bool renderer::renderInit () {
 			#include "shaders/upscale.h"
 
 		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
-			cfg->scaleTaps, "HEIGHT", cfg->antiring ? "#define ANTIRING" : "");
+			cfg->scaleTaps, true, cfg->antiring);
 		if (!renderUpHeightSP)
 			return false;
 
@@ -356,7 +358,7 @@ bool renderer::renderInit () {
 			#include "shaders/upscale.h"
 
 		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
-			cfg->scaleTaps, "WIDTH", cfg->antiring ? "#define ANTIRING" : "");
+			cfg->scaleTaps, false, cfg->antiring);
 		if (!renderUpWidthSP)
 			return false;
 

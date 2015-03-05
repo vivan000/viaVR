@@ -20,8 +20,8 @@
 R"(#version 300 es
 precision %s float;
 #define TAPS %i
-#define %s
-%s
+#define HEIGHT %i
+#define ANTIRING %i
 
 uniform sampler2D video;
 uniform sampler2D weights;
@@ -29,14 +29,14 @@ uniform vec2 pitch;
 in vec2 coord;
 out vec4 outColor;
 
-#ifdef HEIGHT
+#if HEIGHT
 #define newcoord(c) (vec2 (coord.x, coord.y + c * pitch.y))
 #else
 #define newcoord(c) (vec2 (coord.x + c * pitch.x, coord.y))
 #endif
 
 void main () {
-#ifdef HEIGHT
+#if HEIGHT
 	vec4 weightsL = texture (weights, vec2 (coord.y, 0.25));
 	vec4 weightsR = texture (weights, vec2 (coord.y, 0.75));
 #else
@@ -60,7 +60,7 @@ void main () {
 	result += texture (video, newcoord ( 3.5)).rgb * weightsR.a;
 #endif
 
-#ifdef ANTIRING
+#if ANTIRING
 	vec3 pix1 = texture (video, newcoord (-1.5)).rgb;
 	vec3 pix2 = texture (video, newcoord (-0.5)).rgb;
 	vec3 pix3 = texture (video, newcoord ( 0.5)).rgb;

@@ -19,13 +19,13 @@
 
 R"(#version 300 es
 precision %s float;
-%s
-#define DEPTH%i
+#define SHIFTCHROMA %i
+#define DEPTH %i
 
 uniform sampler2D Y;
 uniform sampler2D Cb;
 uniform sampler2D Cr;
-#ifdef HWCHROMA
+#if SHIFTCHROMA
 uniform float chromaShift;
 #else
 #define chroma coord
@@ -34,21 +34,21 @@ in vec2 coord;
 out vec4 outColor;
 
 void main () {
-#ifdef HWCHROMA
+#if SHIFTCHROMA
 	vec2 chroma = vec2 (coord.x + chromaShift, coord.y);
 #endif
 	vec3 result = vec3 (
-#ifdef DEPTH8
+#if DEPTH == 8
 		texture (Y,  coord ).r,
 		texture (Cb, chroma).r,
 		texture (Cr, chroma).r);
 #endif
-#ifdef DEPTH10
+#if DEPTH == 10
 		texture (Y,  coord ).g * 64.0 + texture (Y,  coord ).r * 0.25,
 		texture (Cb, chroma).g * 64.0 + texture (Cb, chroma).r * 0.25,
 		texture (Cr, chroma).g * 64.0 + texture (Cr, chroma).r * 0.25);
 #endif
-#ifdef DEPTH16
+#if DEPTH == 16
 		texture (Y,  coord ).g + texture (Y,  coord ).r / 256.0,
 		texture (Cb, chroma).g + texture (Cb, chroma).r / 256.0,
 		texture (Cr, chroma).g + texture (Cr, chroma).r / 256.0);

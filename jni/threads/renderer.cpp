@@ -91,8 +91,7 @@ void renderer::stop () {
 
 void renderer::render () {
 	eglMakeCurrent (display, pbuffer, pbuffer, context);
-
-#ifdef PERFORMANCE
+#if BENCHMARK
 	int64_t rstart = nanotime ();
 	int rcount = 0;
 	decodeQueue->pop (from);
@@ -101,7 +100,7 @@ void renderer::render () {
 	working = true;
 	while (working) {
 		if (!decodeQueue->isEmpty () && !renderQueue->isFull ()) {
-#ifndef PERFOMANCE
+#if !BENCHMARK
 			decodeQueue->pop (from);
 #endif
 			to->timecode = from->timecode;
@@ -137,7 +136,7 @@ void renderer::render () {
 
 			glFlush ();
 
-#ifdef PERFORMANCE
+#if BENCHMARK
 			rcount++;
 			if (rcount == 100) {
 				LOGD ("Rendering: %6.3f ms", (nanotime () - rstart) / rcount / 1000000.0);

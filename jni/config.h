@@ -20,7 +20,7 @@
 #pragma once
 #include "videoInfo.h"
 #include "threads/helpers/scalers.h"
-// #define PERFORMANCE
+#define BENCHMARK 0
 
 class config {
 public:

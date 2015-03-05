@@ -253,7 +253,7 @@ bool videoRenderer::init () {
 	renderO = new renderer (info, cfg, decodeQueue, renderQueue, display, renderPbuffer, renderContext, vboIds);
 
 	// wait till there's at least 1 frame to show
-#ifndef PERFORMANCE
+#if !BENCHMARK
 	while (renderQueue->isEmpty ())
 		usleep (10000);
 #endif

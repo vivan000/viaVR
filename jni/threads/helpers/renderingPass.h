@@ -22,15 +22,15 @@
 
 enum class passType {
 	Default,
-	Dither,
+	Last,
 };
 
 class renderingPass {
 public:
-	renderingPass (frameGPUi* frame, GLuint program, int target = 0, passType type = passType::Default, GLint uniform = 0);
+	renderingPass (frameGPUi* frame, GLuint program, int target = 0, passType type = passType::Default);
 	~renderingPass ();
 	void executeDefault ();
-	void executeDither (GLuint plane, int targetWidth, int targetHeight);
+	void executeLast (frameGPUo* to);
 
 	const passType type;
 
@@ -38,5 +38,4 @@ private:
 	const frameGPUi* frame;
 	const GLuint program;
 	const int target;
-	const GLint uniform;
 };

@@ -19,14 +19,33 @@
 
 #include "frames/frames.h"
 
-frameGPUo::frameGPUo (videoInfo* f, config* cfg) {
+frameGPUo::frameGPUo (videoInfo* f, config* cfg) :
+	width (cfg->hwScale ? f->width : cfg->targetWidth),
+	height (cfg->hwScale ? f->height : cfg->targetHeight) {
+	GLenum internalFormat;
+	switch (cfg->internalType) {
+		case iFormat::INT8:
+			internalFormat = GL_RGBA8;
+			break;
+		case iFormat::INT10:
+			internalFormat = GL_RGB10_A2;
+			break;
+		case iFormat::FLOAT16:
+			internalFormat = GL_RGBA16F;
+			break;
+		case iFormat::FLOAT32:
+			internalFormat = GL_RGBA32F;
+			break;
+	}
+	GLint filter = (width != cfg->targetWidth || height != cfg->targetHeight) && cfg->hwScaleLinear ? GL_LINEAR : GL_NEAREST;
+
 	glGenTextures (1, &plane);
 	glBindTexture (GL_TEXTURE_2D, plane);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexStorage2D (GL_TEXTURE_2D, 1, GL_RGBA8, cfg->targetWidth, cfg->targetHeight);
+	glTexStorage2D (GL_TEXTURE_2D, 1, internalFormat, width, height);
 
 	timecode = 0;
 }

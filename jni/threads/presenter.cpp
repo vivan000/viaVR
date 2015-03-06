@@ -29,12 +29,8 @@ presenter::presenter (videoInfo* info, config* cfg, queue<frameGPUo>* renderQueu
 	presenter::surface = mainSurface;
 	presenter::context = mainContext;
 
-	videoFps = round ((double) info->fpsNumerator / info->fpsDenominator);
-	hardLate = -2000 / videoFps;
-	softLate = 0;
-	softEarly = 2000 / videoFps;
-	hardEarly = 4000 / videoFps;
-	repeatLim = cfg->displayRefreshRate / videoFps * videoFps;
+	srand (time (NULL));
+	videoFps = (double) info->fpsNumerator / info->fpsDenominator;
 
 	eglMakeCurrent (display, surface, surface, context);
 	glClearColor (0.0f, 0.0f, 0.0f, 0.0f);
@@ -43,13 +39,48 @@ presenter::presenter (videoInfo* info, config* cfg, queue<frameGPUo>* renderQueu
 	const char* displayVP =
 		#include "shaders/displayVert.h"
 	const char* displayFP =
-		#include "shaders/displayFrag.h"
+		#include "shaders/present.h"
 
 	shaderLoader shader;
-	displaySP = shader.loadShaders (displayVP, displayFP);
-	glUseProgram (displaySP);
-	glUniform1i (glGetUniformLocation (displaySP, "video"), 0);
-	from = new frameGPUo (info, cfg);
+
+	// dither and present 1 frame
+	presentOne = shader.loadShaders (displayVP, displayFP, false);
+	glUseProgram (presentOne);
+	glUniform1i (glGetUniformLocation (presentOne, "video0"), 0);
+	glUniform1i (glGetUniformLocation (presentOne, "dither"), 3);
+	glUniform2f (glGetUniformLocation (presentOne, "ditherDepth"),
+		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
+		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));
+	glUniform2f (glGetUniformLocation (presentOne, "ditherResize"),
+		(float) (cfg->targetWidth / 32.0),
+		(float) (cfg->targetHeight / 32.0));
+	presentOneDither = glGetUniformLocation (presentOne, "ditherOffset");
+
+	// dither and present 2 frames
+	presentTwo = shader.loadShaders (displayVP, displayFP, true);
+	glUseProgram (presentTwo);
+	glUniform1i (glGetUniformLocation (presentTwo, "video0"), 0);
+	glUniform1i (glGetUniformLocation (presentTwo, "video1"), 1);
+	glUniform1i (glGetUniformLocation (presentTwo, "dither"), 3);
+	glUniform2f (glGetUniformLocation (presentTwo, "ditherDepth"),
+		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
+		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));
+	glUniform2f (glGetUniformLocation (presentTwo, "ditherResize"),
+		(float) (cfg->targetWidth / 32.0),
+		(float) (cfg->targetHeight / 32.0));
+	presentTwoDither = glGetUniformLocation (presentTwo, "ditherOffset");
+	presentTwoFactor = glGetUniformLocation (presentTwo, "blendingFactor");
+
+	// dither
+	#include "threads/helpers/ditherMatrix.h"
+	dither = new frameGPUi (32, 32, iFormat::DITHER, false);
+	glActiveTexture (GL_TEXTURE0 + 3);
+	glBindTexture (GL_TEXTURE_2D, dither->plane);
+	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);
+	glActiveTexture (GL_TEXTURE0);
+
+	frame0 = new frameGPUo (info, cfg);
+	frame1 = new frameGPUo (info, cfg);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
 	playing = false;
@@ -61,17 +92,21 @@ presenter::~presenter () {
 	thread.join ();
 
 	eglMakeCurrent (display, surface, surface, context);
-	delete from;
+	delete frame0;
+	delete frame1;
+	delete dither;
 	glUseProgram (0);
-	glDeleteProgram (displaySP);
+	glDeleteProgram (presentOne);
+	glDeleteProgram (presentTwo);
 	eglMakeCurrent (display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 }
 
 void presenter::play (int timecode) {
 	start = nanotime () - (int64_t) timecode * 1000000LL;
 	presentedFrames = 0;
-	repeat = 0;
 	frameNumber = 0;
+	repeat = 0.0;
+	factor = (double) cfg->displayRefreshRate / videoFps;
 	playing = true;
 }
 
@@ -87,36 +122,17 @@ void presenter::present () {
 		glClear (GL_COLOR_BUFFER_BIT);
 
 		if (!playing) {
-			glBindTexture (GL_TEXTURE_2D, from->plane);
+			glBindTexture (GL_TEXTURE_2D, frame0->plane);
 			glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 		} else {
 			int tc = tcNow ();
-			while (repeat <= 0)
+			while (repeat <= 0.0)
 				getNextFrame ();
 
-			if (from->timecode < tc + softLate) {
-				if (from->timecode < tc + hardLate) {
-					// if very late - drop current frame
-					LOGI ("Hard drop (repeat: %i)", repeat / videoFps);
-					repeat -= videoFps;
-				} else if (newFrame && (repeat >= cfg->displayRefreshRate)) {
-					// if just a bit late - try to find best frame to drop (that is repeated more times than others)
-					LOGD ("Soft drop (repeat: %i)", repeat / videoFps);
-					repeat -= videoFps;
-				}
-			} else if (from->timecode > tc + softEarly) {
-				if (from->timecode > tc + hardEarly) {
-					// if very early - repeat current frame
-					LOGI ("Hard repeat (repeat: %i)", repeat / videoFps);
-					repeat += videoFps;
-				} else if (newFrame && (repeat <= repeatLim)) {
-					// if just a bit early - try to find best frame to repeat (that is repeated less times than others)
-					LOGD ("Soft repeat (repeat: %i)", repeat / videoFps);
-					repeat += videoFps;
-				}
-			}
-
 			presentFrame ();
+
+			if (repeat <= 0.0 && presentedFrames > cfg->displayRefreshRate)
+				factor = (double) presentedFrames / frameNumber - (tcNow () - frame0->timecode) / 1000.0;
 		}
 
 		eglSwapBuffers (display, surface);
@@ -127,15 +143,14 @@ void presenter::present () {
 
 void presenter::getNextFrame () {
 	if (!renderQueue->isEmpty ()) {
-		renderQueue->pop (from);
-
-		frameNumber++;
-		newFrame = true;
+		frame0->swap (*frame1);
+		renderQueue->pop (frame1);
 	} else {
 		LOGW ("Render queue is empty");
 	}
 
-	repeat += cfg->displayRefreshRate;
+	frameNumber++;
+	repeat += factor;
 }
 
 void presenter::presentFrame () {
@@ -151,17 +166,36 @@ void presenter::presentFrame () {
 	}
 
 	if (cfg->logEachFrame)
-		LOGD ("Frame %3i timecode %5i now %5i (+%5.2f +%5.2f) repeat %2i",
-			frameNumber, from->timecode, tcNow (), presentedFrames > 0 ? deltaPrev : 0.0,
-			presentedFrames > 1 ? deltaPrev2 : 0.0, repeat);
+		LOGD ("%3i tc %5i now %5i (+%5.2f +%5.2f) repeat %4.2f (%4.2f)",
+			frameNumber, frame0->timecode, tcNow (),
+			presentedFrames > 0 ? deltaPrev : 0.0,
+			presentedFrames > 1 ? deltaPrev2 : 0.0,
+			repeat, factor);
 
-	glBindTexture (GL_TEXTURE_2D, from->plane);
+	glActiveTexture (GL_TEXTURE0);
+	glBindTexture (GL_TEXTURE_2D, frame0->plane);
+
+	if (cfg->blending && repeat < 1.0) {
+		glActiveTexture (GL_TEXTURE0 + 1);
+		glBindTexture (GL_TEXTURE_2D, frame1->plane);
+		glUseProgram (presentTwo);
+		glUniform1f (presentTwoFactor, repeat);
+		glUniform3f (presentTwoDither,
+			(float) ((rand() % 32) / 32.0),
+			(float) ((rand() % 32) / 32.0),
+			(float) (rand() % 3));
+	} else {
+		glUseProgram (presentOne);
+		glUniform3f (presentOneDither,
+			(float) ((rand() % 32) / 32.0),
+			(float) ((rand() % 32) / 32.0),
+			(float) (rand() % 3));
+	}
+
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 
 	presentedFrames++;
-	newFrame = false;
-
-	repeat -= videoFps;
+	repeat -= 1.0;
 }
 
 int64_t presenter::nanotime () {

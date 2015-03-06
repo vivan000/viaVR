@@ -134,19 +134,20 @@ private:
 	EGLSurface surface;
 	EGLContext context;
 
-	GLuint displaySP;
+	GLuint presentOne, presentTwo;
+	GLint presentOneDither;
+	GLint presentTwoDither, presentTwoFactor;
 
-	frameGPUo* from;
+	frameGPUo* frame0;
+	frameGPUo* frame1;
+	frameGPUi* dither;
 	bool working, playing;
 	std::thread thread;
 
 	int64_t start;
 	int64_t prev, prev2;
 
-	int repeat, repeatLim;
-	bool newFrame;
+	double videoFps;
+	double repeat, factor;
 	int frameNumber, presentedFrames;
-	int hardLate, softLate, softEarly, hardEarly;
-
-	int videoFps;
 };

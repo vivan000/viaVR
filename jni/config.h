@@ -53,6 +53,7 @@ public:
 
 	int displayMode = 1;
 	int displayRefreshRate = 60;
+	bool blending = false;
 
 	bool logEachFrame = false;
 };

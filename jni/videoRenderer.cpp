@@ -210,8 +210,6 @@ bool videoRenderer::addWindow (ANativeWindow* window) {
 }
 
 bool videoRenderer::init () {
-	srand (time (NULL));
-
 	eglMakeCurrent (display, mainSurface, mainSurface, mainContext);
 
 	// check version

@@ -19,15 +19,14 @@
 
 #include "threads/helpers/renderingPass.h"
 
-renderingPass::renderingPass (frameGPUi* frame, GLuint program, int target, passType type, GLint uniform) :
+renderingPass::renderingPass (frameGPUi* frame, GLuint program, int target, passType type) :
 	frame (frame),
 	program (program),
 	target (target),
-	type (type),
-	uniform (uniform) {}
+	type (type) {}
 
 renderingPass::~renderingPass () {
-	if (renderingPass::type != passType::Dither)
+	if (renderingPass::type != passType::Last)
 		delete frame;
 	glDeleteProgram (program);
 }
@@ -45,14 +44,10 @@ void renderingPass::executeDefault () {
 }
 
 // dither pass
-void renderingPass::executeDither (GLuint plane, int targetWidth, int targetHeight) {
-	glViewport (0, 0, targetWidth, targetHeight);
-	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, plane, 0);
+void renderingPass::executeLast (frameGPUo* to) {
+	glViewport (0, 0, to->width, to->height);
+	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to->plane, 0);
 
 	glUseProgram (program);
-	glUniform3f (uniform,
-		(float) ((rand() % 32) / 32.0),
-		(float) ((rand() % 32) / 32.0),
-		(float) (rand() % 3));
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
 }

@@ -27,7 +27,7 @@ precision %s float;
 #define TORGB %i
 
 uniform sampler2D video;
-uniform sampler2D dither;
+uniform sampler2D random;
 uniform vec2 pitch;
 uniform vec2 debandResize;
 uniform vec3 debandThresh;
@@ -39,9 +39,9 @@ in vec2 coord;
 out vec4 outColor;
 
 void main () {
-	vec2 random = texture (dither, coord * debandResize).rg * 14.0 + 1.0;
-	vec2 x = random * pitch.x;
-	vec2 y = random * pitch.y;
+	vec2 randomShift = texture (random, coord * debandResize).rg * 14.0 + 1.0;
+	vec2 x = randomShift * pitch.x;
+	vec2 y = randomShift * pitch.y;
 	vec3 pix0 = texture (video, coord).rgb;
 	vec3 pix1 = texture (video, vec2 (coord.x - x.x, coord.y - y.y)).rgb;
 	vec3 pix2 = texture (video, vec2 (coord.x - x.y, coord.y + y.x)).rgb;

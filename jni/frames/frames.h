@@ -47,7 +47,7 @@ private:
 	int numberOfPlanes;
 };
 
-// internal frame, RGBA
+// internal frame
 class frameGPUi {
 public:
 	GLuint plane;
@@ -58,11 +58,12 @@ public:
 	~frameGPUi ();
 };
 
-// output frame, RGBA byte
+// output frame
 class frameGPUo {
 public:
 	GLuint plane;
 	int timecode;
+	const int width, height;
 
 	frameGPUo (videoInfo* f, config* cfg);
 	~frameGPUo ();

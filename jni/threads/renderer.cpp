@@ -20,7 +20,7 @@
 #include "threads/threads.h"
 #include "threads/helpers/scalers.h"
 
-#define textureDither 3
+#define textureRandom 3
 #define textureScaleWeightsY 4
 #define textureScaleWeightsX 5
 
@@ -129,8 +129,8 @@ void renderer::render () {
 					case passType::Default:
 						(*passIt)->executeDefault ();
 						break;
-					case passType::Dither:
-						(*passIt)->executeDither (to->plane, cfg->targetWidth, cfg->targetHeight);
+					case passType::Last:
+						(*passIt)->executeLast (to);
 						break;
 				}
 
@@ -173,13 +173,14 @@ bool renderer::renderInit () {
 	shaderLoader shader;
 	LOGD ("Rendering chain:");
 
-	bool needsHwScaling = ((info->width != cfg->targetWidth) || (info->height != cfg->targetHeight)) && cfg->hwScaleLinear;
+	bool dontScale = (info->width == cfg->targetWidth && info->height == cfg->targetHeight) || cfg->hwScale;
 
 	// convert to internal format
 	switch (info->planes) {
 		case 3: {
 			bool shiftChroma = info->halfWidth && cfg->hwChroma;
-			bool convertToRGB = cfg->hwChroma && !cfg->debanding;
+			bool convertToRGB = !cfg->debanding && (cfg->hwChroma || !info->halfWidth);
+			bool lastStep = convertToRGB && dontScale;
 
 			const char* renderToInternalFP =
 				#include "shaders/planarToInternal.h"
@@ -201,15 +202,18 @@ bool renderer::renderInit () {
 					1, info->colorOffset);
 			}
 
-			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling && convertToRGB),
-				renderToInternalSP));
+			if (lastStep)
+				pass.push_back (new renderingPass (nullptr, renderToInternalSP, 0, passType::Last));
+			else
+				pass.push_back (new renderingPass (new frameGPUi (info->width, info->height, cfg->internalType, false), renderToInternalSP));
 			LOGD ("Planar to internal%s%s", shiftChroma ? " + shift chroma" : "", convertToRGB ? " + convert to RGB" : "");
 
 			break;
 		}
 
 		case 1: {
+			bool lastStep = !cfg->debanding && dontScale;
+
 			const char* renderRgbToInteralFP =
 				#include "shaders/displayFrag.h"
 
@@ -220,9 +224,10 @@ bool renderer::renderInit () {
 			glUseProgram (renderToInternalSP);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"), 0);
 
-			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling && !cfg->debanding),
-				renderToInternalSP));
+			if (lastStep)
+				pass.push_back (new renderingPass (nullptr, renderToInternalSP, 0, passType::Last));
+			else
+				pass.push_back (new renderingPass (new frameGPUi (info->width, info->height, cfg->internalType, false), renderToInternalSP));
 			LOGD ("RGBA to internal");
 
 			break;
@@ -245,9 +250,7 @@ bool renderer::renderInit () {
 		glUniform2f (glGetUniformLocation (renderUpHeightSP, "chromaPitch"),
 			(float) 1.0 / info->chromaWidth, (float) 1.0 / info->chromaHeight);
 
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->chromaWidth, info->height, cfg->internalType, false),
-			renderUpHeightSP, 1));
+		pass.push_back (new renderingPass (new frameGPUi (info->chromaWidth, info->height, cfg->internalType, false), renderUpHeightSP, 1));
 		LOGD ("Upsample chroma height");
 	}
 
@@ -255,6 +258,7 @@ bool renderer::renderInit () {
 	if (info->halfWidth && !cfg->hwChroma) {
 		bool separateChroma = info->halfHeight;
 		bool convertToRGB = !cfg->debanding;
+		bool lastStep = convertToRGB && dontScale;
 
 		const char* renderUpWidthFP =
 			#include "shaders/upsample.h"
@@ -278,15 +282,17 @@ bool renderer::renderInit () {
 				1, info->colorOffset);
 		}
 
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling && convertToRGB),
-			renderUpWidthSP));
+		if (lastStep)
+			pass.push_back (new renderingPass (nullptr, renderUpWidthSP, 0, passType::Last));
+		else
+			pass.push_back (new renderingPass (new frameGPUi (info->width, info->height, cfg->internalType, false), renderUpWidthSP));
 		LOGD ("Upsample chroma width%s", convertToRGB ? " + convert to RGB" : "");
 	}
 
 	// debanding
 	if (cfg->debanding) {
 		bool convertToRGB = info->fourCC != pFormat::RGBA;
+		bool lastStep = dontScale;
 
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
@@ -297,7 +303,7 @@ bool renderer::renderInit () {
 
 		glUseProgram (renderDebandSP);
 		glUniform1i (glGetUniformLocation (renderDebandSP, "video"), 0);
-		glUniform1i (glGetUniformLocation (renderDebandSP, "dither"), textureDither);
+		glUniform1i (glGetUniformLocation (renderDebandSP, "random"), textureRandom);
 		glUniform2f (glGetUniformLocation (renderDebandSP, "pitch"),
 			(float) (1.0 / info->width),
 			(float) (1.0 / info->height));
@@ -315,14 +321,26 @@ bool renderer::renderInit () {
 				1, info->colorOffset);
 		}
 
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling),
-			renderDebandSP));
+		#include "threads/helpers/randomMatrix.h"
+		frameGPUi* random = new frameGPUi (32, 32, iFormat::DITHER, false);
+		helperFrames.push_back (random);
+
+		glActiveTexture (GL_TEXTURE0 + textureRandom);
+		glBindTexture (GL_TEXTURE_2D, random->plane);
+		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) randomMatrix);
+		glActiveTexture (GL_TEXTURE0);
+
+		if (lastStep)
+			pass.push_back (new renderingPass (nullptr, renderDebandSP, 0, passType::Last));
+		else
+			pass.push_back (new renderingPass (new frameGPUi (info->width, info->height, cfg->internalType, false),	renderDebandSP));
 		LOGD ("Debanding%s", convertToRGB ? " + convert to RGB" : "");
 	}
 
 	// upscale height
 	if (cfg->targetHeight > info->height && !cfg->hwScale) {
+		bool lastStep = cfg->targetWidth == info->width;
+
 		const char* renderUpHeightFP =
 			#include "shaders/upscale.h"
 
@@ -346,9 +364,10 @@ bool renderer::renderInit () {
 		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, cfg->targetHeight, 2, GL_RGBA, GL_FLOAT, (GLvoid*) s.getWeights ());
 		glActiveTexture (GL_TEXTURE0);
 
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, cfg->targetHeight, cfg->internalType, false),
-			renderUpHeightSP));
+		if (lastStep)
+			pass.push_back (new renderingPass (nullptr, renderUpHeightSP, 0, passType::Last));
+		else
+			pass.push_back (new renderingPass (new frameGPUi (info->width, cfg->targetHeight, cfg->internalType, false), renderUpHeightSP));
 		LOGD ("Upscale height%s", cfg->antiring ? " + antiring" : "");
 	}
 
@@ -377,43 +396,9 @@ bool renderer::renderInit () {
 		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, cfg->targetWidth, 2, GL_RGBA, GL_FLOAT, (GLvoid*) s.getWeights ());
 		glActiveTexture (GL_TEXTURE0);
 
-		pass.push_back (new renderingPass (
-			new frameGPUi (cfg->targetWidth, cfg->targetHeight, cfg->internalType, false),
-			renderUpWidthSP));
+		pass.push_back (new renderingPass (nullptr, renderUpWidthSP, 0, passType::Last));
 		LOGD ("Upscale width%s", cfg->antiring ? " + antiring" : "");
 	}
-
-	// dither
-	const char* renderDitherFP =
-		#include "shaders/dither.h"
-
-	GLuint renderDitherSP = shader.loadShaders (renderVP, renderDitherFP, precision);
-	if (!renderDitherSP)
-		return false;
-
-	glUseProgram (renderDitherSP);
-	glUniform1i (glGetUniformLocation (renderDitherSP, "video"), 0);
-	glUniform1i (glGetUniformLocation (renderDitherSP, "dither"), textureDither);
-	glUniform2f (glGetUniformLocation (renderDitherSP, "ditherDepth"),
-		(float) (pow (2.0, cfg->targetBitdepth) - 1.0),
-		(float) (1.0 / (pow (2.0, cfg->targetBitdepth) - 1.0)));
-	glUniform2f (glGetUniformLocation (renderDitherSP, "ditherResize"),
-		(float) (cfg->targetWidth / 32.0),
-		(float) (cfg->targetHeight / 32.0));
-
-	#include "threads/helpers/ditherMatrix.h"
-
-	frameGPUi* dither = new frameGPUi (32, 32, iFormat::DITHER, false);
-	helperFrames.push_back (dither);
-
-	glActiveTexture (GL_TEXTURE0 + textureDither);
-	glBindTexture (GL_TEXTURE_2D, dither->plane);
-	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, 32, 32, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV, (GLvoid*) ditherMatrix);
-	glActiveTexture (GL_TEXTURE0);
-
-	pass.push_back (new renderingPass (
-		nullptr, renderDitherSP, 0, passType::Dither, glGetUniformLocation (renderDitherSP, "ditherOffset")));
-	LOGD ("Dither");
 
 	return true;
 }

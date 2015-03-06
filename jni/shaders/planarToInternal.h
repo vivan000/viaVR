@@ -21,6 +21,7 @@ R"(#version 300 es
 precision %s float;
 #define SHIFTCHROMA %i
 #define DEPTH %i
+#define TORGB %i
 
 uniform sampler2D Y;
 uniform sampler2D Cb;
@@ -28,30 +29,36 @@ uniform sampler2D Cr;
 #if SHIFTCHROMA
 uniform float chromaShift;
 #else
-#define chroma coord
+#define chromaCoord coord
+#endif
+#if TORGB
+uniform mat3 colorMatrix;
+uniform vec3 colorOffset;
 #endif
 in vec2 coord;
 out vec4 outColor;
 
 void main () {
 #if SHIFTCHROMA
-	vec2 chroma = vec2 (coord.x + chromaShift, coord.y);
+	vec2 chromaCoord = vec2 (coord.x + chromaShift, coord.y);
 #endif
 	vec3 result = vec3 (
 #if DEPTH == 8
-		texture (Y,  coord ).r,
-		texture (Cb, chroma).r,
-		texture (Cr, chroma).r);
+		texture (Y,  coord      ).r,
+		texture (Cb, chromaCoord).r,
+		texture (Cr, chromaCoord).r);
+#elif DEPTH == 10
+		texture (Y,  coord      ).g * 64.0 + texture (Y,  coord      ).r * 0.25,
+		texture (Cb, chromaCoord).g * 64.0 + texture (Cb, chromaCoord).r * 0.25,
+		texture (Cr, chromaCoord).g * 64.0 + texture (Cr, chromaCoord).r * 0.25);
+#elif DEPTH == 16
+		texture (Y,  coord      ).g + texture (Y,  coord      ).r / 256.0,
+		texture (Cb, chromaCoord).g + texture (Cb, chromaCoord).r / 256.0,
+		texture (Cr, chromaCoord).g + texture (Cr, chromaCoord).r / 256.0);
 #endif
-#if DEPTH == 10
-		texture (Y,  coord ).g * 64.0 + texture (Y,  coord ).r * 0.25,
-		texture (Cb, chroma).g * 64.0 + texture (Cb, chroma).r * 0.25,
-		texture (Cr, chroma).g * 64.0 + texture (Cr, chroma).r * 0.25);
-#endif
-#if DEPTH == 16
-		texture (Y,  coord ).g + texture (Y,  coord ).r / 256.0,
-		texture (Cb, chroma).g + texture (Cb, chroma).r / 256.0,
-		texture (Cr, chroma).g + texture (Cr, chroma).r / 256.0);
+
+#if TORGB
+	result = result * colorMatrix + colorOffset;
 #endif
 
 	outColor = vec4 (result, 1.0);

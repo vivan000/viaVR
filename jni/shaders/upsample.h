@@ -21,6 +21,7 @@ R"(#version 300 es
 precision %s float;
 #define HEIGHT %i
 #define SEPARATE %i
+#define TORGB %i
 
 uniform sampler2D video;
 #if SEPARATE
@@ -30,6 +31,10 @@ uniform sampler2D chroma;
 #endif
 uniform vec2 chromaSize;
 uniform vec2 chromaPitch;
+#if TORGB
+uniform mat3 colorMatrix;
+uniform vec3 colorOffset;
+#endif
 in vec2 coord;
 out vec4 outColor;
 
@@ -68,6 +73,10 @@ void main () {
 	result.gb += pix2 * weight.g;
 	result.gb += pix3 * weight.b;
 	result.gb += pix4 * weight.a;
+
+#if TORGB
+	result = result * colorMatrix + colorOffset;
+#endif
 
 	outColor = vec4 (result, 1.0);
 })";

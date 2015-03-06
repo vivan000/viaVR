@@ -173,14 +173,18 @@ bool renderer::renderInit () {
 	shaderLoader shader;
 	LOGD ("Rendering chain:");
 
+	bool needsHwScaling = ((info->width != cfg->targetWidth) || (info->height != cfg->targetHeight)) && cfg->hwScaleLinear;
+
 	// convert to internal format
 	switch (info->planes) {
 		case 3: {
+			bool shiftChroma = info->halfWidth && cfg->hwChroma;
+			bool convertToRGB = cfg->hwChroma && !cfg->debanding;
+
 			const char* renderToInternalFP =
 				#include "shaders/planarToInternal.h"
 
-			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderToInternalFP, precision,
-				info->halfWidth && cfg->hwChroma, info->bitdepth);
+			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderToInternalFP, precision, shiftChroma, info->bitdepth, convertToRGB);
 			if (!renderToInternalSP)
 				return false;
 
@@ -188,13 +192,19 @@ bool renderer::renderInit () {
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Y"),  0);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cb"), 1);
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "Cr"), 2);
-			if (info->halfWidth && cfg->hwChroma)
+			if (shiftChroma)
 				glUniform1f (glGetUniformLocation (renderToInternalSP, "chromaShift"), (float) (0.5 / info->width));
+			if (convertToRGB) {
+				glUniformMatrix3fv (glGetUniformLocation (renderToInternalSP, "colorMatrix"),
+					1, GL_FALSE, info->colorConversion);
+				glUniform3fv (glGetUniformLocation (renderToInternalSP, "colorOffset"),
+					1, info->colorOffset);
+			}
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, cfg->internalType, false),
+				new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling && convertToRGB),
 				renderToInternalSP));
-			LOGD ("Planar to internal");
+			LOGD ("Planar to internal%s%s", shiftChroma ? " + shift chroma" : "", convertToRGB ? " + convert to RGB" : "");
 
 			break;
 		}
@@ -211,7 +221,7 @@ bool renderer::renderInit () {
 			glUniform1i (glGetUniformLocation (renderToInternalSP, "video"), 0);
 
 			pass.push_back (new renderingPass (
-				new frameGPUi (info->width, info->height, cfg->internalType, false),
+				new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling && !cfg->debanding),
 				renderToInternalSP));
 			LOGD ("RGBA to internal");
 
@@ -224,8 +234,7 @@ bool renderer::renderInit () {
 		const char* renderUpHeightFP =
 			#include "shaders/upsample.h"
 
-		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
-			true, false);
+		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision, true, false, false);
 		if (!renderUpHeightSP)
 			return false;
 
@@ -244,35 +253,45 @@ bool renderer::renderInit () {
 
 	// upsample chroma width (4:2:2 -> 4:4:4)
 	if (info->halfWidth && !cfg->hwChroma) {
+		bool separateChroma = info->halfHeight;
+		bool convertToRGB = !cfg->debanding;
+
 		const char* renderUpWidthFP =
 			#include "shaders/upsample.h"
 
-		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
-			false, info->halfHeight);
+		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision, false, separateChroma, convertToRGB);
 		if (!renderUpWidthSP)
 			return false;
 
 		glUseProgram (renderUpWidthSP);
 		glUniform1i (glGetUniformLocation (renderUpWidthSP, "video"), 0);
-		if (info->halfHeight)
+		if (separateChroma)
 			glUniform1i (glGetUniformLocation (renderUpWidthSP, "chroma"), 1);
 		glUniform2f (glGetUniformLocation (renderUpWidthSP, "chromaSize"),
 			(float) info->chromaWidth, (float) info->chromaHeight);
 		glUniform2f (glGetUniformLocation (renderUpWidthSP, "chromaPitch"),
 			(float) 1.0 / info->chromaWidth, (float) 1.0 / info->chromaHeight);
+		if (convertToRGB) {
+			glUniformMatrix3fv (glGetUniformLocation (renderUpWidthSP, "colorMatrix"),
+				1, GL_FALSE, info->colorConversion);
+			glUniform3fv (glGetUniformLocation (renderUpWidthSP, "colorOffset"),
+				1, info->colorOffset);
+		}
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType, false),
+			new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling && convertToRGB),
 			renderUpWidthSP));
-		LOGD ("Upsample chroma width");
+		LOGD ("Upsample chroma width%s", convertToRGB ? " + convert to RGB" : "");
 	}
 
 	// debanding
 	if (cfg->debanding) {
+		bool convertToRGB = info->fourCC != pFormat::RGBA;
+
 		const char* renderDebandFP =
 			#include "shaders/deband.h"
 
-		GLuint renderDebandSP = shader.loadShaders (renderVP, renderDebandFP, precision);
+		GLuint renderDebandSP = shader.loadShaders (renderVP, renderDebandFP, precision, convertToRGB);
 		if (!renderDebandSP)
 			return false;
 
@@ -289,34 +308,17 @@ bool renderer::renderInit () {
 			(float) (-3.0 * 255.0 / cfg->debandAvgDif),
 			(float) (-3.0 * 255.0 / cfg->debandMaxDif),
 			(float) (-3.0 * 255.0 / cfg->debandMidDif));
+		if (convertToRGB) {
+			glUniformMatrix3fv (glGetUniformLocation (renderDebandSP, "colorMatrix"),
+				1, GL_FALSE, info->colorConversion);
+			glUniform3fv (glGetUniformLocation (renderDebandSP, "colorOffset"),
+				1, info->colorOffset);
+		}
 
 		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType, false),
+			new frameGPUi (info->width, info->height, cfg->internalType, needsHwScaling),
 			renderDebandSP));
-		LOGD ("Debanding");
-	}
-
-	// convert YCbCr -> RGB
-	if (info->fourCC != pFormat::RGBA) {
-		const char* renderYuvToRgbFP =
-			#include "shaders/yuvToRgb.h"
-
-		GLuint renderYuvToRgbSP = shader.loadShaders (renderVP, renderYuvToRgbFP, precision);
-		if (!renderYuvToRgbSP)
-			return false;
-
-		glUseProgram (renderYuvToRgbSP);
-		glUniform1i (glGetUniformLocation (renderYuvToRgbSP, "video"), 0);
-		glUniformMatrix3fv (glGetUniformLocation (renderYuvToRgbSP, "colorMatrix"),
-			1, GL_FALSE, info->colorConversion);
-		glUniform3fv (glGetUniformLocation (renderYuvToRgbSP, "colorOffset"),
-			1, info->colorOffset);
-
-		pass.push_back (new renderingPass (
-			new frameGPUi (info->width, info->height, cfg->internalType,
-				((info->width != cfg->targetWidth) || (info->height != cfg->targetHeight)) && cfg->hwScaleLinear),
-			renderYuvToRgbSP));
-		LOGD ("YCbCr -> RGB conversion");
+		LOGD ("Debanding%s", convertToRGB ? " + convert to RGB" : "");
 	}
 
 	// upscale height
@@ -324,8 +326,7 @@ bool renderer::renderInit () {
 		const char* renderUpHeightFP =
 			#include "shaders/upscale.h"
 
-		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision,
-			cfg->scaleTaps, true, cfg->antiring);
+		GLuint renderUpHeightSP = shader.loadShaders (renderVP, renderUpHeightFP, precision, cfg->scaleTaps, true, cfg->antiring);
 		if (!renderUpHeightSP)
 			return false;
 
@@ -356,8 +357,7 @@ bool renderer::renderInit () {
 		const char* renderUpWidthFP =
 			#include "shaders/upscale.h"
 
-		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision,
-			cfg->scaleTaps, false, cfg->antiring);
+		GLuint renderUpWidthSP = shader.loadShaders (renderVP, renderUpWidthFP, precision, cfg->scaleTaps, false, cfg->antiring);
 		if (!renderUpWidthSP)
 			return false;
 

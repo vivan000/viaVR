@@ -30,10 +30,13 @@ public:
 	int targetX, targetY;
 	int targetWidth, targetHeight;
 
+	int decodeQueueSize = 16;
+	int renderQueueSize = 16;
+
 	bool hwChroma = true;
-	bool hwScale = false;
+	bool hwScale = true;
 	bool hwChromaLinear = true;
-	bool hwScaleLinear = false;
+	bool hwScaleLinear = true;
 
 	kernel scaleKernel = kernel::Lanczos;
 	int scaleTaps = 3;

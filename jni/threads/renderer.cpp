@@ -169,7 +169,7 @@ bool renderer::renderInit () {
 	glEnableVertexAttribArray (textureCoordLoc);
 
 	const char* renderVP =
-		#include "shaders/displayVert.h"
+		#include "shaders/vertex.h"
 	shaderLoader shader;
 	LOGD ("Rendering chain:");
 
@@ -215,9 +215,9 @@ bool renderer::renderInit () {
 			bool lastStep = !cfg->debanding && dontScale;
 
 			const char* renderRgbToInteralFP =
-				#include "shaders/displayFrag.h"
+				#include "shaders/RGBtoInternal.h"
 
-			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderRgbToInteralFP);
+			GLuint renderToInternalSP = shader.loadShaders (renderVP, renderRgbToInteralFP, precision);
 			if (!renderToInternalSP)
 				return false;
 
@@ -228,7 +228,7 @@ bool renderer::renderInit () {
 				pass.push_back (new renderingPass (nullptr, renderToInternalSP, 0, passType::Last));
 			else
 				pass.push_back (new renderingPass (new frameGPUi (info->width, info->height, cfg->internalType, false), renderToInternalSP));
-			LOGD ("RGBA to internal");
+			LOGD ("RGB to internal");
 
 			break;
 		}

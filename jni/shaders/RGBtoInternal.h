@@ -18,7 +18,7 @@
  */
 
 R"(#version 300 es
-precision highp float;
+precision %s float;
 
 uniform sampler2D video;
 in vec2 coord;

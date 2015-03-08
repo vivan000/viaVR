@@ -37,7 +37,7 @@ presenter::presenter (videoInfo* info, config* cfg, queue<frameGPUo>* renderQueu
 	glDisable (GL_DITHER);
 
 	const char* displayVP =
-		#include "shaders/displayVert.h"
+		#include "shaders/vertex.h"
 	const char* displayFP =
 		#include "shaders/present.h"
 

@@ -3,7 +3,7 @@ Advanced video renderer for Android. [Overview](https://github.com/vivan000/viaV
 
 ### Features:
 - large buffers to ensure smooth playback.
-- smart presentation logic to minimize stutter.
+- smart presentation logic to minimize stutter, blending to minimize judder.
 - input support for common video formats (4:2:0, 4:2:2, 4:4:4 at 8, 10 and 16 bit-depth).
 - high bit-depth processing.
 - proper color conversion (BT.709 support, correct chroma location).

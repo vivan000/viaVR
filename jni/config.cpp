@@ -31,6 +31,13 @@ config::config () {
 			f.getline (str, 64);
 			if (sscanf (str, "%s = %s", opt, val)) {
 				LOGD ("%s -> %s", opt, val);
+
+				// queues
+				if (!strcmp (opt, "decodeQueueSize"))
+					sscanf (val, "%i", &decodeQueueSize);
+				if (!strcmp (opt, "renderQueueSize"))
+					sscanf (val, "%i", &renderQueueSize);
+
 				// scaling
 				if (!strcmp (opt, "hwChroma"))
 					hwChroma = !strcmp (val, "true");
@@ -45,6 +52,8 @@ config::config () {
 					scaleKernel = kernel::Lanczos;
 				if (!strcmp (opt, "scaleTaps"))
 					sscanf (val, "%i", &scaleTaps);
+				if (!strcmp (opt, "antiring"))
+					antiring = !strcmp (val, "true");
 
 				// processing
 				if (!strcmp (opt, "internalType")) {
@@ -77,10 +86,30 @@ config::config () {
 					sscanf (val, "%i", &displayMode);
 				if (!strcmp (opt, "displayRefreshRate"))
 					sscanf (val, "%i", &displayRefreshRate);
+				if (!strcmp (opt, "blending"))
+					blending = !strcmp (val, "true");
 
 				// logging
 				if (!strcmp (opt, "logEachFrame"))
 					logEachFrame = !strcmp (val, "true");
+
+				// override input tags
+				if (!strcmp (opt, "overrideRange")) {
+					if (!strcmp (val, "UNKNOWN"))
+						overrideRange = pRange::UNKNOWN;
+					if (!strcmp (val, "TV"))
+						overrideRange = pRange::TV;
+					if (!strcmp (val, "PC"))
+						overrideRange = pRange::PC;
+				}
+				if (!strcmp (opt, "overrideMatrix")) {
+					if (!strcmp (val, "UNKNOWN"))
+						overrideMatrix = pMatrix::UNKNOWN;
+					if (!strcmp (val, "BT601"))
+						overrideMatrix = pMatrix::BT601;
+					if (!strcmp (val, "BT709"))
+						overrideMatrix = pMatrix::BT709;
+				}
 			}
 		}
 	}

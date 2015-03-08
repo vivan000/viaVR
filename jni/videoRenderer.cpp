@@ -72,8 +72,10 @@ int videoRenderer::getMinorVersion () {
 
 bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	videoRenderer::video = video;
-	info = new videoInfo (video->getWidth (), video->getHeight (),
-		video->getFourCC (), video->getRange (), video->getMatrix ());
+
+	info = new videoInfo (video->getWidth (), video->getHeight (), video->getFourCC (),
+		cfg->overrideRange != pRange::UNKNOWN ? (int) cfg->overrideRange : video->getRange (),
+		cfg->overrideMatrix != pMatrix::UNKNOWN ? (int) cfg->overrideMatrix : video->getMatrix ());
 
 	if (!info->init)
 		return false;
@@ -83,13 +85,18 @@ bool videoRenderer::addVideoDecoder (IVideoDecoder* video) {
 	info->fpsNumerator = video->getFpsNumerator ();
 	info->fpsDenominator = video->getFpsDenominator ();
 
+	const char* rangeReason = cfg->overrideRange != pRange::UNKNOWN ? "forced" :
+		video->getRange () != 0 ? "upstream" : "guess";
+	const char* matrixReason = cfg->overrideMatrix != pMatrix::UNKNOWN ? "forced" :
+		video->getMatrix () != 0 ? "upstream" : "guess";
+
 	LOGD ("Video info:");
 	LOGD ("Video %ix%i (%i:%i)", info->width, info->height, info->sarWidth, info->sarHeight);
 	LOGD (reinterpret_cast <char*> (&info->fourCC)[2] > 16 ? "FourCC: %c%c%c%c\n" : "FourCC: %c%c[%i][%i]\n",
 		reinterpret_cast <char*> (&info->fourCC)[0], reinterpret_cast <char*> (&info->fourCC)[1],
 		reinterpret_cast <char*> (&info->fourCC)[2], reinterpret_cast <char*> (&info->fourCC)[3]);
-	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", video->getMatrix () != 0 ? "upstream" : "guess");
-	LOGD ("Range: %s (%s)",	info->range == pRange::TV ? "TV" : "PC", video->getRange () != 0 ? "upstream" : "guess");
+	LOGD ("Matrix: %s (%s)", info->matrix == pMatrix::BT709 ? "BT.709" : "BT.601", matrixReason);
+	LOGD ("Range: %s (%s)", info->range == pRange::TV ? "TV" : "PC", rangeReason);
 	LOGD ("Framerate: %i/%i", info->fpsNumerator, info->fpsDenominator);
 
 	LOGD ("Video decoder connected");

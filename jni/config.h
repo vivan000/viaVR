@@ -56,4 +56,7 @@ public:
 	bool blending = false;
 
 	bool logEachFrame = false;
+
+	pRange overrideRange = pRange::UNKNOWN;
+	pMatrix overrideMatrix = pMatrix::UNKNOWN;
 };

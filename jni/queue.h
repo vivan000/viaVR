@@ -64,7 +64,7 @@ void queue<T>::push (T* f) {
 	int t = first + size;
 	if (t > capacity - 1)
 		t -= capacity;
-	f->swap (*buffer[t]);
+	f->swap (buffer[t]);
 	size++;
 	_lock.unlock ();
 }
@@ -75,7 +75,7 @@ void queue<T>::pop (T* f) {
 	int t = first++;
 	if (first > capacity - 1)
 		first -= capacity;
-	f->swap (*buffer[t]);
+	f->swap (buffer[t]);
 	size--;
 	_lock.unlock ();
 }

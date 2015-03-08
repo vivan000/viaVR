@@ -54,7 +54,7 @@ frameGPUo::~frameGPUo () {
 	glDeleteTextures (1, &plane);
 }
 
-void frameGPUo::swap (frameGPUo& that) {
-	std::swap (plane, that.plane);
-	std::swap (timecode, that.timecode);
+void frameGPUo::swap (frameGPUo* that) {
+	std::swap (plane, that->plane);
+	std::swap (timecode, that->timecode);
 }

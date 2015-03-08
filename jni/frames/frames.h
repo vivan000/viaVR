@@ -30,7 +30,7 @@ public:
 
 	frameCPU (videoInfo* f, config* cfg);
 	~frameCPU ();
-	void swap (frameCPU& that);
+	void swap (frameCPU* that);
 };
 
 // frame for upload, 1-3 planes, 1-4 channels, byte
@@ -41,7 +41,7 @@ public:
 
 	frameGPUu (videoInfo* f, config* cfg);
 	~frameGPUu ();
-	void swap (frameGPUu& that);
+	void swap (frameGPUu* that);
 
 private:
 	int numberOfPlanes;
@@ -67,5 +67,5 @@ public:
 
 	frameGPUo (videoInfo* f, config* cfg);
 	~frameGPUo ();
-	void swap (frameGPUo& that);
+	void swap (frameGPUo* that);
 };

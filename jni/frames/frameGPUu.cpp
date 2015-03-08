@@ -46,7 +46,7 @@ frameGPUu::~frameGPUu () {
 	delete[] plane;
 }
 
-void frameGPUu::swap (frameGPUu& that) {
-	std::swap (plane, that.plane);
-	std::swap (timecode, that.timecode);
+void frameGPUu::swap (frameGPUu* that) {
+	std::swap (plane, that->plane);
+	std::swap (timecode, that->timecode);
 }

@@ -143,7 +143,7 @@ void presenter::present () {
 
 void presenter::getNextFrame () {
 	if (!renderQueue->isEmpty ()) {
-		frame0->swap (*frame1);
+		frame0->swap (frame1);
 		renderQueue->pop (frame1);
 	} else {
 		LOGW ("Render queue is empty");

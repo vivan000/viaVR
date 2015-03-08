@@ -29,7 +29,7 @@ frameCPU::~frameCPU () {
 	delete[] plane;
 }
 
-void frameCPU::swap (frameCPU& that) {
-	std::swap (plane, that.plane);
-	std::swap (timecode, that.timecode);
+void frameCPU::swap (frameCPU* that) {
+	std::swap (plane, that->plane);
+	std::swap (timecode, that->timecode);
 }

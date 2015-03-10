@@ -131,8 +131,10 @@ void presenter::present () {
 
 			presentFrame ();
 
-			if (repeat <= 0.0 && presentedFrames > cfg->displayRefreshRate)
-				factor = (double) presentedFrames / frameNumber - (tcNow () - frame0->timecode) / 1000.0;
+			if (repeat <= 0.0 && frameNumber % 30 == 0) {
+				factor = (double) presentedFrames / frameNumber + (frame0->timecode - tcNow ()) / 2000.0;
+				factor = factor < 0.25 ? 0.25 : factor;
+			}
 		}
 
 		eglSwapBuffers (display, surface);

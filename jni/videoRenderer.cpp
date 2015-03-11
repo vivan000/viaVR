@@ -350,12 +350,12 @@ void videoRenderer::setAspect () {
 			if ((long long) surfaceWidth * info->height * info->sarHeight < (long long) info->width * info->sarWidth * surfaceHeight) {
 				cfg->targetX = 0;
 				cfg->targetWidth = surfaceWidth;
-				cfg->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
+				cfg->targetHeight = round ((double) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth);
 				cfg->targetY = (surfaceHeight - cfg->targetHeight) / 2;
 			} else {
 				cfg->targetY = 0;
 				cfg->targetHeight = surfaceHeight;
-				cfg->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
+				cfg->targetWidth = round ((double) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight);
 				cfg->targetX = (surfaceWidth - cfg->targetWidth) / 2;
 			}
 			break;
@@ -365,12 +365,12 @@ void videoRenderer::setAspect () {
 			if ((long long) surfaceWidth * info->height * info->sarHeight > (long long) info->width * info->sarWidth * surfaceHeight) {
 				cfg->targetX = 0;
 				cfg->targetWidth = surfaceWidth;
-				cfg->targetHeight = (long long) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth;
+				cfg->targetHeight = round ((double) surfaceWidth * info->height * info->sarHeight / info->width / info->sarWidth);
 				cfg->targetY = (surfaceHeight - cfg->targetHeight) / 2;
 			} else {
 				cfg->targetY = 0;
 				cfg->targetHeight = surfaceHeight;
-				cfg->targetWidth = (long long) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight;
+				cfg->targetWidth = round ((double) surfaceHeight * info->width * info->sarWidth / info->height / info->sarHeight);
 				cfg->targetX = (surfaceWidth - cfg->targetWidth) / 2;
 			}
 			break;

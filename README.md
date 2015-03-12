@@ -15,7 +15,6 @@ Advanced video renderer for Android. [Overview](https://github.com/vivan000/viaV
 - native code (C++), full GPU acceleration (OpenGL ES 3.0).
 
 ### Planned features:
-- better downscaling (bicubic).
 - subtitle consumer.
 - OSD (stats).
 - settings.

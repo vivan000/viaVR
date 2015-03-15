@@ -234,10 +234,10 @@ bool videoRenderer::init () {
 	// set viewport
 	setAspect ();
 
-	// check extenions
-	if (!checkExtensions ())
+	// check config
+	if (!checkConfig ())
 		return false;
-	LOGD ("Extensions: OK");
+	LOGD ("Config: OK");
 
 	// load coordinates
 	loadVbos ();
@@ -267,7 +267,19 @@ bool videoRenderer::init () {
 	return true;
 }
 
-bool videoRenderer::checkExtensions () {
+bool videoRenderer::checkConfig () {
+	// disable linear filtering if shader scaling is used
+	if (!cfg->hwChroma)
+		cfg->hwChromaLinear = false;
+	if (!cfg->hwScale)
+		cfg->hwScaleLinear = false;
+
+	// switch to hw bilinear if target resolution is lower
+	if (cfg->targetWidth < info->width || cfg->targetHeight < info->height) {
+		cfg->hwScale = true;
+		cfg->hwScaleLinear = true;
+	}
+
 	GLint numExtensions;
 	std::vector<std::string> extList;
 
@@ -300,19 +312,14 @@ bool videoRenderer::checkExtensions () {
 			extTimerQuery = true;
 	}
 
-	if (cfg->internalType == iFormat::FLOAT16) {
-		if (!extColorHalfFloat)
-			return false;
-		if (!extHalfFloatLinear && cfg->hwScaleLinear)
-			return false;
-	}
+	// downgrade internal format if it's unsupported
+	if (cfg->internalType == iFormat::FLOAT32)
+		if (!extColorFloat || (!extFloatLinear && cfg->hwScaleLinear))
+			cfg->internalType == iFormat::FLOAT16;
 
-	if (cfg->internalType == iFormat::FLOAT32) {
-		if (!extColorFloat)
-			return false;
-		if (!extFloatLinear && cfg->hwScaleLinear)
-			return false;
-	}
+	if (cfg->internalType == iFormat::FLOAT16)
+		if (!extColorHalfFloat || (!extHalfFloatLinear && cfg->hwScaleLinear))
+			cfg->internalType == iFormat::INT10;
 
 /*
 	if (extBinningControl)
@@ -332,6 +339,16 @@ bool videoRenderer::checkExtensions () {
 	LOGD ("Binning control: %s", extBinningControl ? "supported" : "not supported");
 	LOGD ("Write-only rendering: %s", extWriteOnly ? "supported" : "not supported");
 	LOGD ("Timer queries: %s", extTimerQuery ? "supported" : "not supported");
+
+	LOGD ("Config:");
+	LOGD ("Internal format: %s",
+		cfg->internalType == iFormat::FLOAT32 ? "32-bit float" :
+		cfg->internalType == iFormat::FLOAT16 ? "16-bit float" :
+		cfg->internalType == iFormat::INT8 ? "10-bit int" : "8-bit int");
+	LOGD ("Scaling: %s chroma, %s image", cfg->hwChroma ? "hw" : "shader", cfg->hwScale ? "hw" : "shader");
+	LOGD ("Debanding: %s", cfg->debanding ? "on" : "off");
+	LOGD ("Blending: %s", cfg->blending ? "on" : "off");
+
 	return true;
 }
 

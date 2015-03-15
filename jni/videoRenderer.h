@@ -44,7 +44,7 @@ public:
 private:
 	bool renderInit ();
 	void loadVbos ();
-	bool checkExtensions ();
+	bool checkConfig ();
 	void setAspect ();
 
 	bool initialized = false;

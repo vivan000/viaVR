@@ -35,6 +35,7 @@ renderingPass::~renderingPass () {
 void renderingPass::executeDefault () {
 	glViewport (0, 0, frame->width, frame->height);
 	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, frame->plane, 0);
+	glClear (GL_COLOR_BUFFER_BIT);
 
 	glUseProgram (program);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
@@ -47,6 +48,7 @@ void renderingPass::executeDefault () {
 void renderingPass::executeLast (frameGPUo* to) {
 	glViewport (0, 0, to->width, to->height);
 	glFramebufferTexture2D (GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, to->plane, 0);
+	glClear (GL_COLOR_BUFFER_BIT);
 
 	glUseProgram (program);
 	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);

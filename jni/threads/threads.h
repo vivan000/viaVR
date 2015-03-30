@@ -134,6 +134,25 @@ private:
 	EGLSurface surface;
 	EGLContext context;
 
+#if PRESENTALGO == 0
+	GLuint presentOne;
+	GLint presentOneDither;
+
+	frameGPUo* frame0;
+	frameGPUi* dither;
+	bool working, playing;
+	std::thread thread;
+
+	int64_t start;
+	int64_t prev, prev2;
+
+	int repeat, repeatLim;
+	bool newFrame;
+	int frameNumber, presentedFrames;
+	int hardLate, softLate, softEarly, hardEarly;
+
+	int videoFps;
+#else
 	GLuint presentOne, presentTwo;
 	GLint presentOneDither;
 	GLint presentTwoDither, presentTwoFactor;
@@ -150,4 +169,5 @@ private:
 	double videoFps;
 	double repeat, factor;
 	int frameNumber, presentedFrames;
+#endif
 };

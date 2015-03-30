@@ -21,6 +21,7 @@
 #include "videoInfo.h"
 #include "threads/helpers/scalers.h"
 #define BENCHMARK 0
+#define PRESENTALGO 0
 
 class config {
 public:

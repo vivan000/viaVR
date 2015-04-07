@@ -344,7 +344,7 @@ bool videoRenderer::checkConfig () {
 	LOGD ("Internal format: %s",
 		cfg->internalType == iFormat::FLOAT32 ? "32-bit float" :
 		cfg->internalType == iFormat::FLOAT16 ? "16-bit float" :
-		cfg->internalType == iFormat::INT8 ? "10-bit int" : "8-bit int");
+		cfg->internalType == iFormat::INT10 ? "10-bit int" : "8-bit int");
 	LOGD ("Scaling: %s chroma, %s image", cfg->hwChroma ? "hw" : "shader", cfg->hwScale ? "hw" : "shader");
 	LOGD ("Debanding: %s", cfg->debanding ? "on" : "off");
 	LOGD ("Blending: %s", cfg->blending ? "on" : "off");
